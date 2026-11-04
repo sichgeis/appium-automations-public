@@ -1,7 +1,10 @@
 const ID = /^catalog-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MAGIC = new Uint8Array([72, 72, 67, 49]);
+const IMAGE_MAGIC = new Uint8Array([72, 72, 73, 49]);
 const encoder = new TextEncoder();
 const aad = id => encoder.encode('household-catalog-v1:' + id);
+const imageAAD = (id, image) => encoder.encode('household-image-v1:' + id + ':' + image);
+const IMAGE_ID = /^[a-f0-9]{32}$/;
 export const catalogStorageKey = id => id === 'synthetic-demo-v1' ? 'household-swipe-synthetic-v1' : 'household-swipe:' + id;
 export const catalogRecoveryKey = id => id === 'synthetic-demo-v1' ? 'household-swipe-before-import-v1' : 'household-before-import:' + id;
 
@@ -26,7 +29,7 @@ export function validateCatalog(value) {
     || (value.people !== undefined && !validPeople(value.people))
     || !Array.isArray(value.products) || value.products.length > 10000) throw new Error('Ungültiger privater Katalog.');
   const ids = new Set(), purchases = new Set();
-  const allowed = new Set(['id', 'name', 'brand', 'detail', 'merchant', 'count', 'quantity', 'total', 'low', 'high', 'priceLabel', 'variant', 'purchases']);
+  const allowed = new Set(['id', 'name', 'brand', 'detail', 'merchant', 'count', 'quantity', 'total', 'low', 'high', 'priceLabel', 'variant', 'purchases', 'image']);
   for (const p of value.products) {
     if (!p || Object.keys(p).some(k => !allowed.has(k)) || !/^p-[a-f0-9]{24}$/.test(p.id) || ids.has(p.id)
       || !['name', 'brand', 'detail', 'merchant', 'quantity', 'priceLabel', 'variant'].every(k => typeof p[k] === 'string' && p[k].length <= 2000)
@@ -35,6 +38,15 @@ export function validateCatalog(value) {
       || (p.low === null) !== (p.high === null) || (p.low !== null && p.low > p.high)
       || !Array.isArray(p.purchases) || !p.purchases.length) throw new Error('Ungültige Produktkarte.');
     ids.add(p.id);
+    if (p.image !== undefined) {
+      const image = p.image;
+      if (!image || Object.keys(image).some(k => !['id', 'mime', 'title', 'kind', 'sourceUrl', 'credit', 'license'].includes(k))
+        || !IMAGE_ID.test(image.id) || image.mime !== 'image/jpeg' || !['product', 'illustrative'].includes(image.kind)
+        || !['title', 'sourceUrl'].every(k => typeof image[k] === 'string' && image[k].length > 0 && image[k].length < 4000)
+        || !['credit', 'license'].every(k => image[k] === undefined || (typeof image[k] === 'string' && image[k].length < 2000))) throw new Error('Ungültige Bildreferenz.');
+      const source = new URL(image.sourceUrl);
+      if (source.protocol !== 'https:' || source.username || source.password) throw new Error('Ungültige Bildquelle.');
+    }
     for (const purchase of p.purchases) {
       if (!purchase || Object.keys(purchase).some(k => !['id', 'amount', 'month'].includes(k))
         || !/^p-[a-f0-9]{24}$/.test(purchase.id) || purchases.has(purchase.id)
@@ -71,6 +83,23 @@ export async function openCatalog(bytes, key, id, cryptoApi = crypto) {
   } catch { throw new Error('Privater Katalog konnte nicht geöffnet werden. Bitte den ursprünglichen privaten Startlink verwenden.'); }
 }
 
+export async function sealImage(bytes, key, catalogId, imageId, cryptoApi = crypto) {
+  if (!ID.test(catalogId) || !IMAGE_ID.test(imageId) || key.length !== 32 || bytes.length > 512 * 1024 || bytes.length < 4) throw new Error('Ungültiges Bildpaket.');
+  const iv = cryptoApi.getRandomValues(new Uint8Array(12));
+  const imported = await cryptoApi.subtle.importKey('raw', key, 'AES-GCM', false, ['encrypt']);
+  const cipher = new Uint8Array(await cryptoApi.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: imageAAD(catalogId, imageId), tagLength: 128 }, imported, bytes));
+  const output = new Uint8Array(cipher.length + 16); output.set(IMAGE_MAGIC); output.set(iv, 4); output.set(cipher, 16);
+  return output;
+}
+
+export async function openImage(bytes, key, catalogId, imageId, cryptoApi = crypto) {
+  if (!ID.test(catalogId) || !IMAGE_ID.test(imageId) || bytes.length < 32 || bytes.length > 512 * 1024 + 32 || !IMAGE_MAGIC.every((n, i) => bytes[i] === n)) throw new Error('Bild nicht verfügbar.');
+  try {
+    const imported = await cryptoApi.subtle.importKey('raw', key, 'AES-GCM', false, ['decrypt']);
+    return new Uint8Array(await cryptoApi.subtle.decrypt({ name: 'AES-GCM', iv: bytes.slice(4, 16), additionalData: imageAAD(catalogId, imageId), tagLength: 128 }, imported, bytes.slice(16)));
+  } catch { throw new Error('Bild nicht verfügbar.'); }
+}
+
 export function encodeKey(key) { return btoa(String.fromCharCode(...key)).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', ''); }
 function decodeKey(text) {
   if (!/^[a-zA-Z0-9_-]{43}$/.test(text ?? '')) throw new Error('Privaten Startlink erneut öffnen.');
@@ -94,5 +123,12 @@ export async function loadCatalog({ location, history, storage, demoProducts, fe
   const catalog = await openCatalog(new Uint8Array(await response.arrayBuffer()), key, id, cryptoApi);
   storage.setItem(cacheKey, encoded);
   storage.setItem('household-last-private-catalog', id);
+  Object.defineProperty(catalog, 'loadImage', { enumerable: false, value: async image => {
+    if (!catalog.products.some(p => p.image?.id === image.id)) throw new Error('Bild gehört nicht zum Katalog.');
+    const response = await fetcher(new URL('./catalogs/' + id + '/images/' + image.id + '.bin', location.href), { credentials: 'omit', referrerPolicy: 'no-referrer' });
+    if (!response.ok) throw new Error('Bild nicht verfügbar.');
+    const decoded = await openImage(new Uint8Array(await response.arrayBuffer()), key, id, image.id, cryptoApi);
+    return new Blob([decoded], { type: image.mime });
+  } });
   return catalog;
 }

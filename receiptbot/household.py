@@ -141,6 +141,10 @@ def build_catalog(receipts, catalog_id, rules=None):
             'purchases': [{'id': p['id'], 'amount': p['amount'], 'month': p['month']} for p in entries],
         })
     cards.sort(key=lambda p: (-p['total'], p['id']))
+    images = (rules or {}).get('images', {})
+    for card in cards:
+        if card['id'] in images:
+            card['image'] = images[card['id']]
     if len({p['id'] for p in cards}) != len(cards): raise ValueError('Kennungskollision.')
     totals = {bucket: sum(r['amount_cents'] for r in ledger if r['bucket'] == bucket)
               for bucket in sorted({r['bucket'] for r in ledger})}
@@ -173,6 +177,9 @@ def migrate(root, destination):
     if not settings.exists():
         atomic_write(settings, lambda f: json.dump({'catalog_id': 'catalog-' + str(uuid4()), 'groups': []}, f))
     rules = json.loads(settings.read_text())
+    image_map = destination / 'product-images.json'
+    if image_map.exists():
+        rules['images'] = json.loads(image_map.read_text())['products']
     catalog, lineage, candidates = build_catalog(records, rules['catalog_id'], rules)
     for filename, value in [('catalog.json', catalog), ('lineage.json', lineage), ('identity-candidates.json', candidates)]:
         atomic_write(destination / filename, lambda f, value=value: json.dump(value, f, ensure_ascii=False, indent=2))

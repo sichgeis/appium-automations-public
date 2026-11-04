@@ -71,3 +71,35 @@ nutzt ausschließlich synthetische Katalogdaten. Kein automatischer Signal-Versa
 
 [AES-GCM-Parameter](https://developer.mozilla.org/en-US/docs/Web/API/AesGcmParams),
 [URL-Fragment wird nicht an den Server gesendet](https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Fragment).
+
+## Private Teilnehmerbeschriftungen
+
+Optionale `people`-Metadaten stehen ausschließlich im verschlüsselten Katalog:
+Rollen `a`, `b` und positive Versionsnummer. Namen werden in der ignorierten
+Migrationseinstellung gepflegt, nie in öffentlichen Quellen/Tests. Beim ersten
+Start einer neuen Metadatenversion werden nur Anzeigenamen und deren Version
+aktualisiert. Bestehende Entscheidungen, Prozentwerte, Verlauf und Katalog-ID
+bleiben erhalten. Spätere lokale Namensänderungen bleiben bis zur nächsten
+expliziten Metadatenmigration bestehen. Die öffentliche Demo bleibt neutral.
+
+
+## Verschlüsselte Produktbilder
+
+Bildrecherche und Produktzuordnung liegen ausschließlich lokal unter `output/`.
+`prepare-images.mjs <privater Katalogordner> <Rechercheordner>` prüft Rasterdaten,
+verkleinert sie auf höchstens 384 × 384 Pixel und verschlüsselt jedes JPEG separat
+mit AES-GCM (HHI1, eigene Zufalls-IV, authentifizierte Katalog- und Bildkennung).
+`image-rejections.json` sperrt visuell verworfene Produkt/Bild-Paare. Quellen,
+Kennzeichnung als Produkt- oder Beispielbild und gegebenenfalls Urheber/Lizenz
+stehen nur im verschlüsselten Katalog. Ohne hinreichend passenden Treffer bleibt
+bewusst der Platzhalter. Keine Zusammenlegung von Sorten durch Bildrecherche.
+
+Die technische Migration liest `product-images.json`; bestehende IDs, Kaufbezüge,
+Beträge und Bewertungen bleiben erhalten. Für `build-pages.mjs --sealed-catalog
+<datei> --sealed-images <ordner>` enthält der Bildordner ausschließlich freigegebene,
+vom Katalog referenzierte HHI1-Dateien. Originalbilder, Recherche und Schlüssel
+werden nie kopiert. Die App entschlüsselt Bilder bei Bedarf und stellt sie über
+kurzlebige Blob-URLs dar; beim Kartenwechsel wird die vorige URL freigegeben.
+Es gibt keine Bildanfragen vom Telefon an Händler. Die Quellenverknüpfung öffnet
+nur auf ausdrücklichen Klick mit `noreferrer`. Fehlende oder beschädigte Bilder
+blockieren weder Bewertung noch Export. Die öffentliche Demo bleibt synthetisch.

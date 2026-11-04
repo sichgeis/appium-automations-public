@@ -22,6 +22,14 @@ def receipt(items, **extra):
 
 
 class HouseholdTests(unittest.TestCase):
+    def test_image_enrichment_preserves_identity_and_money(self):
+        records = [receipt([item(1)])]; old = build_catalog(records, CATALOG)[0]
+        image = {'id': '1' * 32, 'mime': 'image/jpeg', 'title': 'Synthetisches Bild', 'kind': 'illustrative', 'sourceUrl': 'https://example.org/source'}
+        updated = build_catalog(records, CATALOG, {'images': {old['products'][0]['id']: image}})[0]
+        self.assertEqual(updated['products'][0].pop('image'), image)
+        self.assertEqual(updated['products'], old['products'])
+        self.assertEqual(updated['ledgerTotals'], old['ledgerTotals'])
+
     def test_optional_private_people_do_not_change_product_ids(self):
         records = [receipt([item(1)])]
         old = build_catalog(records, CATALOG)[0]

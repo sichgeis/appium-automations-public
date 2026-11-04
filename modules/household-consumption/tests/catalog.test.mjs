@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateCatalog, sealCatalog, openCatalog, encodeKey, loadCatalog, catalogStorageKey, applyCatalogPeople } from '../web/catalog.mjs';
+import { validateCatalog, sealCatalog, openCatalog, encodeKey, loadCatalog, catalogStorageKey, applyCatalogPeople, sealImage, openImage } from '../web/catalog.mjs';
 import { initialState, assign, persist, summary } from '../web/core.mjs';
 import { createBackup, parseBackup } from '../web/backup.mjs';
 
 const id = 'catalog-00000000-0000-4000-8000-000000000001';
+const imageId = '1'.repeat(32);
 function fixture(size = 1) {
   const products = Array.from({ length: size }, (_, i) => ({
     id: 'p-' + i.toString(16).padStart(24, '0'), name: 'Synthetisches Testprodukt ' + i, brand: 'Lebensmittel',
@@ -61,6 +62,36 @@ test('invalid label metadata is rejected before applying or decrypting a catalog
   const catalog = fixture(); catalog.people = { a: '', b: 'Test links', version: 1 };
   assert.throws(() => validateCatalog(catalog));
   assert.throws(() => applyCatalogPeople(initialState(), catalog.people));
+});
+test('image encryption authenticates image identity and prevents catalog/image substitution', async () => {
+  const key = crypto.getRandomValues(new Uint8Array(32)); const bytes = new Uint8Array([255, 216, 1, 2, 255, 217]);
+  const cipher = await sealImage(bytes, key, id, imageId);
+  assert.deepEqual(await openImage(cipher, key, id, imageId), bytes);
+  await assert.rejects(openImage(cipher, key, id, '2'.repeat(32)));
+  await assert.rejects(openCatalog(cipher, key, id));
+  cipher[cipher.length - 1] ^= 1;
+  await assert.rejects(openImage(cipher, key, id, imageId));
+});
+test('private images load only from the app origin, with no third-party image requests or keys', async () => {
+  const catalog = fixture(); catalog.products[0].image = { id: imageId, mime: 'image/jpeg', title: 'Synthetisches Bild', kind: 'illustrative', sourceUrl: 'https://example.org/source' };
+  const sealed = await sealCatalog(catalog); const image = new Uint8Array([255, 216, 1, 2, 255, 217]);
+  const ciphertext = await sealImage(image, sealed.key, id, imageId); const key = encodeKey(sealed.key);
+  const requests = [];
+  const loaded = await loadCatalog({ location: { hash: '#catalog=' + id + '&key=' + key, href: 'https://example.org/app/', pathname: '/app/', search: '' }, history: { replaceState() {} }, storage: memory(), fetcher: async (url, options) => {
+    requests.push(url.href); assert.equal(url.origin, 'https://example.org'); assert.equal(url.hash, ''); assert.equal(url.href.includes(key), false); assert.equal(options.credentials, 'omit');
+    return { ok: true, arrayBuffer: async () => url.pathname.endsWith(imageId + '.bin') ? ciphertext.buffer : sealed.bytes.buffer };
+  } });
+  assert.equal(requests.length, 1);
+  const blob = await loaded.loadImage(loaded.products[0].image);
+  assert.equal(blob.type, 'image/jpeg'); assert.deepEqual(new Uint8Array(await blob.arrayBuffer()), image);
+  assert.equal(requests.length, 2); assert.ok(requests.every(url => !url.includes('/source')));
+});
+test('image metadata rejects executable sources and unknown MIME types', () => {
+  const catalog = fixture();
+  catalog.products[0].image = { id: imageId, mime: 'image/svg+xml', title: 'Test', kind: 'product', sourceUrl: 'https://example.org/source' };
+  assert.throws(() => validateCatalog(catalog));
+  catalog.products[0].image.mime = 'image/jpeg'; catalog.products[0].image.sourceUrl = 'javascript:alert(1)';
+  assert.throws(() => validateCatalog(catalog));
 });
 test('automatic link loading strips key before fetching, never transmits it and resumes without import UI', async () => {
   const catalog = fixture(); const sealed = await sealCatalog(catalog); const key = encodeKey(sealed.key);
