@@ -53,3 +53,15 @@ Signal dennoch keine Datei übernimmt, „Als Nachricht teilen“ verwenden. Das
 ihn über „Text wiederherstellen“ einfügen und vor Übernahme prüfen. Nachrichten
 über 32 KB werden nicht geteilt oder gekürzt; dafür den Dateiexport verwenden.
 Native Signal-Kompatibilität ist noch nicht auf einem echten Gerät bestätigt.
+
+## Technische Katalogmigration
+
+Eigene geprüfte Daten können lokal technisch vorbereitet werden; kein sichtbarer
+Produktimport ist erforderlich. Automatischer Start mit privatem Link und lokaler
+Entschlüsselung ist implementiert. Der öffentliche Standardbuild enthält weiterhin
+ausschließlich synthetische Daten. Verschlüsselte echte Pakete bedürfen gesonderter
+Bereitstellung. Schlüssel bleiben lokal. Siehe [Migration](MIGRATION.md).
+
+Packungsgrößen und Angebotspreise werden innerhalb gleicher Händlerbezeichnung
+und Sorte zusammengefasst. Preisbereiche dienen als Orientierung; tatsächliche
+Kaufbeträge bestimmen die Kostenanteile. Keine exakte Verzehrmessung.

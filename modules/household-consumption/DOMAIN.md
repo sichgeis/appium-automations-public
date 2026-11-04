@@ -21,30 +21,10 @@ Bonpositionen über Händler + Originalhash + Positionsnummer identifizieren.
 Diese Herkunft bleibt ausschließlich im lokalen Paket; kein Originalpfad,
 Filialname, Zahlungsmerkmal oder Fiskalcode muss zur Web-App übertragen werden.
 
-Eine Produktgruppe beginnt konservativ mit Händler, normalisierter Bezeichnung,
-belegter Marke, Sorte und Packungsgröße. Schreibweise/Leerraum vereinheitlichen;
-Sorten, Fettstufen, Größen und Gewichtsvarianten nicht wegkürzen. Keine Marke,
-EAN oder Größe aus einem abgekürzten Bonnamen erfinden. Preise sind kein
-Identitätsmerkmal. Unterschiedliche Schokoladensorten bleiben getrennt.
-
-Bestätigte Nutzerregel: Nur nachweislich dasselbe konkrete Produkt darf zu einer
-Karte zusammengefasst werden. Nussschokolade und Joghurt-Erdbeer-Schokolade
-erscheinen zwingend auf getrennten Karten, auch bei gleicher Marke oder gleichem
-Preis. Wiederholte Käufe derselben Marke, Sorte und Packungsgröße können dagegen
-eine Karte bilden; wechselnde Preise oder mehrere gekaufte Packungen ändern die
-Produktidentität nicht.
-
-Gleicher Bonkurztext ist allein kein Identitätsnachweis: Ein Sammeltext wie
-„SCHOKOLADE“ kann mehrere Sorten bezeichnen. Fehlende Angaben sind keine
-Übereinstimmung. Bei unklarer Identität zunächst getrennte vorläufige Karten
-erhalten und eine Prüfung anbieten. Nur harmlose Schreibvarianten normalisieren;
-keine automatische unscharfe oder semantische Zusammenfassung. Verifizierte
-Artikelkennung oder manuell bestätigte Identität kann die Zusammenführung belegen.
-
-Händlerübergreifende Zusammenführung nur nach Bestätigung oder verifizierter
-Produktidentität. Ähnliche Namen liefern Vorschläge. Eine Zusammenführung erhält
-alle Quellen und Aliasse. Bei widersprüchlichen Zuordnungen ist eine Entscheidung
-erforderlich. Eine Aufteilung verteilt Käufe explizit auf die neuen Gruppen.
+Aktuelle Gruppierung: gleiche Händlerbezeichnung und Sorte, Größenangaben ignorieren.
+Markentext, Sorten und Fettstufen bleiben erhalten. Angebote werden nicht getrennt.
+Preisspannen sind Orientierung; Kaufbeträge bilden die Grundlage der Kostenaufteilung.
+Generische unklare Bezeichnungen bleiben separat. Keine unscharfe Zusammenführung.
 Gruppen-IDs bleiben bei Namensänderungen stabil; keine laufend neu berechneten
 Namenshashes als dauerhafte IDs verwenden.
 
@@ -101,6 +81,6 @@ Datensatz zeigt Lebensmittel, andere Waren, Pfand, Rückgaben und Rabatte.
   als Ausnahmen. Nach den ersten Produktkarten überprüfen.
 - Entscheidung: Unabhängige Gerätestände mit Export/Dateiteilen; zweite Bewertung
   optional. Empfangene Dateien behalten ihre Bewertungsidentität.
-- Offen: Wie stark sollen Gruppen nach Größe differenzieren? Erst konservativ.
+- Entscheidung: Größen und Angebote gemeinsam; Sorten/Markenbezeichnungen unterscheidbar.
 - Offen: Welche Kosten-/Mengenansicht beantwortet die Haushaltsfrage am besten?
 - Entscheidung: Kein zentraler, geräteübergreifender Datenstand benötigt.

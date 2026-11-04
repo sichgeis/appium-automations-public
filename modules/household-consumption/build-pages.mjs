@@ -3,11 +3,13 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+const args = process.argv.slice(2);
+if (args.length && (args.length !== 2 || args[0] !== '--sealed-catalog')) throw new Error('Nur --sealed-catalog <HHC1-Datei> wird unterstützt.');
 const { demoPath } = JSON.parse(await readFile(path.join(moduleDir, 'pages.config.json'), 'utf8'));
 if (!/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(demoPath)) throw new Error('Ungültiger Demo-Pfad.');
 
 // Explicit allowlist: never copy the repository, local storage, output/, or receipt files.
-export const publicFiles = ['index.html', 'style.css', 'app.mjs', 'core.mjs', 'products.mjs', 'backup.mjs'];
+export const publicFiles = ['index.html', 'style.css', 'app.mjs', 'core.mjs', 'products.mjs', 'backup.mjs', 'catalog.mjs'];
 for (const file of publicFiles) {
   if (!(await lstat(path.join(moduleDir, 'web', file))).isFile()) throw new Error(`Keine reguläre Quelldatei: ${file}`);
 }
@@ -23,4 +25,12 @@ await writeFile(path.join(destination, 'index.html'), blank);
 await writeFile(path.join(destination, '404.html'), blank);
 await writeFile(path.join(destination, '.nojekyll'), '');
 await writeFile(path.join(destination, 'robots.txt'), '# Index exclusion is supplied by noindex on every HTML page.\n# Do not block crawling: crawlers must be able to read noindex.\n# On project Pages, the effective robots.txt belongs at the domain root.\nUser-agent: *\nDisallow:\n');
-process.stdout.write(JSON.stringify({ directory: destination, demoPath, files: publicFiles.length + 4 }) + '\n');
+if (args.length) {
+  const filename = path.basename(args[1]);
+  if (!/^catalog-[a-f0-9-]{36}\.bin$/.test(filename) || !(await lstat(args[1])).isFile()) throw new Error('Keine erlaubte verschlüsselte Katalogdatei.');
+  const bytes = await readFile(args[1]);
+  if (bytes.length < 32 || bytes.length > 4 * 1024 * 1024 || bytes.subarray(0, 4).toString() !== 'HHC1') throw new Error('Katalog ist kein HHC1-Paket.');
+  await mkdir(path.join(destination, demoPath, 'catalogs'));
+  await copyFile(args[1], path.join(destination, demoPath, 'catalogs', filename));
+}
+process.stdout.write(JSON.stringify({ directory: destination, demoPath, files: publicFiles.length + 4 + (args.length ? 1 : 0), encryptedCatalog: Boolean(args.length) }) + '\n');
