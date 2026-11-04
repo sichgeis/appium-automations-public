@@ -1,6 +1,6 @@
 import { products } from './products.mjs';
 import { STORAGE_KEY, initialState, validateState, pending, assign, undo, summary, persist, swipeDirection, defaults } from './core.mjs';
-import { RECOVERY_KEY, MAX_BACKUP_BYTES, backupText, parseBackup, filename, shareFile, handOffShare } from './backup.mjs';
+import { RECOVERY_KEY, MAX_BACKUP_BYTES, backupText, parseBackup, filename, shareFile, handOffShare, handOffTextShare, createBackup } from './backup.mjs?v=signal-2';
 
 const $ = id => document.getElementById(id);
 const money = n => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n / 100);
@@ -59,7 +59,7 @@ function render() {
   $('undo').disabled = storageBlocked || !state.history.length;
   $('reviewer-tag').textContent = state.assessment.reviewer || 'Eigener Gerätestand';
   $('save-status').textContent = state.savedAt ? '✓ Auf diesem Gerät gespeichert · keine Synchronisierung' : '◉ Nur auf diesem Browser gespeichert. Keine echten Bons.';
-  for (const id of ['export', 'share-backup', 'download-backup', 'import-backup', 'recovery-backup', 'confirm-import']) $(id).disabled = storageBlocked;
+  for (const id of ['export', 'share-backup', 'share-text', 'download-backup', 'import-backup', 'recovery-backup', 'confirm-import', 'import-text', 'preview-text']) $(id).disabled = storageBlocked;
   try { $('recovery-backup').hidden = !localStorage.getItem(RECOVERY_KEY); } catch { $('recovery-backup').hidden = true; }
   for (const id of ['choose-a', 'choose-b', 'choose-shared', 'skip']) $(id).disabled = storageBlocked;
   if (!done) {
@@ -165,15 +165,24 @@ $('share-backup').onclick = async () => {
   const file = shareFile(navigator, backupText(state, products), state);
   if (!file) {
     downloadBackup();
-    backupStatus('Dieser Browser unterstützt das Teilen dieser Datei nicht. Download gestartet: bitte die Datei in Mail oder WhatsApp als Anhang auswählen.');
+    backupStatus('Dieser Browser unterstützt das Dateiteilen nicht. Download gestartet: bitte die Datei direkt in Signal oder Mail anhängen. Alternativ „Als Nachricht teilen“ verwenden.');
     return;
   }
   $('share-backup').disabled = true;
   try {
     const result = await handOffShare(navigator, file);
-    backupStatus(result === 'cancelled' ? 'Teilen abgebrochen. Deine Bewertung bleibt gespeichert.' : 'Datei an das Teilen-Menü übergeben. Bitte Versand und Empfänger in der gewählten App prüfen.');
+    backupStatus(result === 'cancelled' ? 'Teilen abgebrochen. Deine Bewertung bleibt gespeichert.' : 'Datei an das Teilen-Menü übergeben. Falls Signal keinen Anhang zeigt, „Als Nachricht teilen“ verwenden. Versand bitte in Signal prüfen.');
   } catch (error) { backupStatus(error.message); }
   finally { $('share-backup').disabled = storageBlocked; }
+};
+$('share-text').onclick = async () => {
+  if (storageBlocked) return;
+  $('share-text').disabled = true;
+  try {
+    const result = await handOffTextShare(navigator, JSON.stringify(createBackup(state, products)));
+    backupStatus(result === 'cancelled' ? 'Teilen abgebrochen. Deine Bewertung bleibt gespeichert.' : 'Bewertung als Nachricht übergeben. Bitte prüfen, dass Signal den vollständigen Text zeigt. Empfangene Nachrichten lassen sich über „Text wiederherstellen“ importieren.');
+  } catch (error) { backupStatus(error.message); }
+  finally { $('share-text').disabled = storageBlocked; }
 };
 function previewImport(restored) {
   importCandidate = restored;
@@ -182,6 +191,13 @@ function previewImport(restored) {
   $('import-preview').showModal();
 }
 $('import-backup').onclick = () => { $('backup-file').value = ''; $('backup-file').click(); };
+$('import-text').onclick = () => { $('backup-text').value = ''; $('text-import-error').textContent = ''; $('text-import').showModal(); };
+$('preview-text').onclick = () => {
+  try {
+    const restored = parseBackup($('backup-text').value.trim(), products);
+    $('text-import').close(); previewImport(restored);
+  } catch (error) { $('text-import-error').textContent = error.message; }
+};
 $('backup-file').onchange = async () => {
   const file = $('backup-file').files[0]; if (!file || storageBlocked) return;
   try {

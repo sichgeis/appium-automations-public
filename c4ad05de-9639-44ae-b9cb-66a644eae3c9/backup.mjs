@@ -44,7 +44,9 @@ export function filename(state, extension = 'json') {
 
 export function shareFile(navigatorApi, text, state) {
   if (typeof navigatorApi.share !== 'function' || typeof navigatorApi.canShare !== 'function') return null;
-  for (const [type, ext] of [['application/json', 'json'], ['text/plain', 'txt']]) {
+  // Browser support for JSON says nothing about the selected messenger's support.
+  // Prefer a plain text attachment; its contents remain fully restorable JSON.
+  for (const [type, ext] of [['text/plain', 'txt'], ['application/json', 'json']]) {
     const file = new File([text], filename(state, ext), { type });
     try { if (navigatorApi.canShare({ files: [file] })) return file; } catch { /* try the portable text file */ }
   }
@@ -53,10 +55,23 @@ export function shareFile(navigatorApi, text, state) {
 
 export async function handOffShare(navigatorApi, file) {
   try {
-    await navigatorApi.share({ files: [file], title: 'Tisch für zwei – meine Bewertung' });
+    // One item only: avoid extra text/title items competing with the attachment.
+    await navigatorApi.share({ files: [file] });
     return 'handed-off';
   } catch (error) {
     if (error.name === 'AbortError') return 'cancelled';
     throw new Error('Teilen war nicht möglich. Bitte die Datei herunterladen und als Anhang verschicken.');
+  }
+}
+
+export async function handOffTextShare(navigatorApi, text) {
+  if (typeof navigatorApi.share !== 'function') throw new Error('Dieser Browser unterstützt das Teilen von Nachrichten nicht. Bitte die Datei herunterladen.');
+  if (new TextEncoder().encode(text).byteLength > 32000) throw new Error('Diese Bewertung ist für eine Textnachricht zu groß. Bitte als Datei teilen oder herunterladen.');
+  try {
+    await navigatorApi.share({ text });
+    return 'handed-off';
+  } catch (error) {
+    if (error.name === 'AbortError') return 'cancelled';
+    throw new Error('Textteilen war nicht möglich. Bitte die Datei herunterladen und direkt in Signal anhängen.');
   }
 }
