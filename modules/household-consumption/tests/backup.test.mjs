@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initialState, assign, pending } from '../web/core.mjs';
 import { products } from '../web/products.mjs';
-import { createBackup, backupText, parseBackup, shareFile, handOffShare, MAX_BACKUP_BYTES } from '../web/backup.mjs';
+import { createBackup, backupText, parseBackup, shareFile, handOffShare, handOffTextShare, MAX_BACKUP_BYTES } from '../web/backup.mjs';
 
 test('backup restores independent assessment, names, shares, queue and undo history exactly', () => {
   const state = assign(initialState(), products[0].id, 'shared', 72);
@@ -37,7 +37,29 @@ test('share attaches the full restorable file, not only a page link', async () =
   const file = shareFile(api, backupText(state, products), state);
   assert.equal(await handOffShare(api, file), 'handed-off');
   assert.equal(attachment.url, undefined);
+  assert.deepEqual(Object.keys(attachment), ['files']);
   assert.deepEqual(parseBackup(await attachment.files[0].text(), products), state);
+});
+test('prefer messenger-compatible text attachment even when browser accepts JSON', () => {
+  const file = shareFile({ share() {}, canShare() { return true; } }, '{}', initialState());
+  assert.equal(file.type, 'text/plain'); assert.match(file.name, /\.txt$/);
+});
+test('message sharing contains the whole restorable assessment and no mixed attachments', async () => {
+  const state = assign(initialState(), products[0].id, 'a');
+  let received;
+  const text = JSON.stringify(createBackup(state, products));
+  assert.equal(await handOffTextShare({ share(data) { received = data; } }, text), 'handed-off');
+  assert.deepEqual(Object.keys(received), ['text']);
+  assert.deepEqual(parseBackup(received.text, products), state);
+});
+test('oversized messages are rejected before any share without truncating decisions', async () => {
+  let sent = false;
+  await assert.rejects(handOffTextShare({ share() { sent = true; } }, 'ä'.repeat(17000)), /zu groß/);
+  assert.equal(sent, false);
+});
+test('text sharing treats cancellation as cancellation and unsupported sharing as an error', async () => {
+  assert.equal(await handOffTextShare({ share() { throw Object.assign(new Error(), { name: 'AbortError' }); } }, '{}'), 'cancelled');
+  await assert.rejects(handOffTextShare({}, '{}'), /unterstützt/);
 });
 test('unsupported JSON share falls back to text file with identical restorable bytes', async () => {
   const state = initialState(); const text = backupText(state, products);

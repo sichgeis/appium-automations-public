@@ -43,3 +43,13 @@ Zielbrowser: Safari/iOS und Chrome/Android. Responsive Browserprüfung ersetzt
 keine echten Gerätetests. Native Share-API-Fälle werden mit Testdoubles geprüft.
 
 Siehe [Fachregeln](DOMAIN.md), [Technik](IMPLEMENTATION.md) und [Pages](PUBLISHING.md).
+
+## Signal auf iPhone
+
+Dateiteilen verwendet bevorzugt eine Textdatei mit wiederherstellbarem JSON und
+übergibt keine zusätzlichen Text-/Titelbestandteile neben dem Anhang. Falls
+Signal dennoch keine Datei übernimmt, „Als Nachricht teilen“ verwenden. Das
+übergibt den vollständigen kompakten Bewertungstext ohne Anhang. Empfänger können
+ihn über „Text wiederherstellen“ einfügen und vor Übernahme prüfen. Nachrichten
+über 32 KB werden nicht geteilt oder gekürzt; dafür den Dateiexport verwenden.
+Native Signal-Kompatibilität ist noch nicht auf einem echten Gerät bestätigt.
