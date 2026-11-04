@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#f6f5ef">
+  <title>Tisch für zwei · Swipe-Prototyp</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.mjs"></script>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="./"><span class="brand-icon" aria-hidden="true">◒</span> tisch für zwei<span class="brand-dot">.</span></a><button id="settings-open" class="quiet" aria-label="Namen einstellen">⚙ <span>Namen</span></button></header>
+  <main>
+    <div class="eyebrow"><span class="status-dot"></span> SWIPE-PROTOTYP <span class="demo-pill">Nur Beispieldaten</span></div>
+    <section class="intro"><h1>Wer isst was?</h1><p>Ein Produkt. Eine kleine Entscheidung.</p></section>
+    <nav class="tabs" aria-label="Ansicht"><button class="active" id="sort-tab" aria-selected="true">Zuordnen <span id="remaining-badge"></span></button><button id="overview-tab" aria-selected="false">Übersicht <span id="assigned-badge"></span></button></nav>
+    <div id="error" role="alert" hidden></div>
+    <section id="sort-view" aria-label="Produkte zuordnen">
+      <div class="progress-heading"><span id="progress-label"></span><span id="coverage-label"></span></div>
+      <progress id="progress" value="0" max="10" aria-label="Zugeordnete Produkte"></progress>
+      <div class="deck" id="deck">
+        <div class="back-card" aria-hidden="true"></div>
+        <article id="product-card" class="product-card" aria-label="Produktkarte zum Wischen">
+          <div class="card-top"><span id="merchant" class="merchant"></span><span id="variant" class="variant"></span></div>
+          <div class="product-scene" id="scene" aria-hidden="true"></div>
+          <div class="swipe-stamp" id="swipe-stamp" aria-hidden="true"></div>
+          <div class="product-copy"><span class="product-brand" id="product-brand"></span><h2 id="product-title"></h2><p id="product-detail"></p></div>
+          <dl class="facts"><div><dt>Gekauft auf</dt><dd id="purchase-count"></dd></div><div><dt>Gesamtbetrag</dt><dd id="total"></dd></div><div><dt id="price-label">Preis / Packung</dt><dd id="price"></dd></div></dl>
+          <div class="card-foot"><span id="quantity"></span><span>Fiktives Produkt</span></div>
+        </article>
+      </div>
+      <section id="complete" class="complete" hidden><span aria-hidden="true">✦</span><h2>Alles auf dem Tisch.</h2><p>Alle Beispielprodukte sind zugeordnet. In der Übersicht kannst du jede Entscheidung ändern.</p><button id="complete-overview" class="primary">Zur Übersicht →</button></section>
+      <div id="decision-controls"><p class="gesture-hint">← links <span>·</span> ↑ gemeinsam <span>·</span> rechts →</p><div class="choices"><button id="choose-b" class="choice person-b"><span aria-hidden="true">↖</span><strong id="label-b">Person B</strong><small>hauptsächlich</small></button><button id="choose-shared" class="choice shared"><span aria-hidden="true">↑</span><strong>Beide</strong><small>gemeinsam · 50/50</small></button><button id="choose-a" class="choice person-a"><span aria-hidden="true">↗</span><strong id="label-a">Person A</strong><small>hauptsächlich</small></button></div></div>
+      <div class="secondary-actions"><button id="undo" class="quiet" disabled>↶ Rückgängig</button><button id="skip" class="quiet">Später →</button></div>
+      <p class="local-note" id="save-status">◉ Nur auf diesem Browser gespeichert. Keine echten Bons.</p>
+    </section>
+    <section id="overview-view" hidden aria-label="Zuordnungen und Kosten"><div class="overview-heading"><h2>So teilt es sich auf.</h2><p>Kostenannahmen, kein gemessener Verzehr.</p></div><div id="totals" class="totals"></div><p class="overview-note" id="open-cost"></p><div class="list-heading"><h3>Deine Entscheidungen</h3><button id="export" class="quiet">Sicherung ↓</button></div><p class="overview-note">Produkt antippen, um Zuordnung oder Kostenanteil zu ändern.</p><div id="product-list"></div></section>
+    <section class="backup-panel" aria-label="Bewertung sichern"><div class="list-heading"><h3>Deine Bewertung mitnehmen</h3><span class="assessment-tag" id="reviewer-tag"></span></div><p>Deine Swipes bleiben auf diesem Gerät. Teile die Exportdatei per Mail oder Messenger, damit deine Bewertung zurückkommt. Andere Geräte bewerten unabhängig.</p><div class="backup-buttons"><button id="share-backup" class="primary">Bewertung teilen ↗</button><button id="download-backup" class="secondary">Datei herunterladen ↓</button><button id="import-backup" class="quiet">Datei wiederherstellen</button><button id="recovery-backup" class="quiet" hidden>Stand vor letztem Import</button></div><input type="file" id="backup-file" accept=".json,.txt,application/json,text/plain" hidden><p id="backup-status" role="status" aria-live="polite"></p></section>
+    <p id="announcement" class="sr-only" role="status" aria-live="polite"></p>
+  </main>
+  <footer><span>Ein gemeinsamer Tisch. Euer eigener Überblick.</span><span>DEMO / 01</span></footer>
+  <dialog id="settings"><form id="settings-form"><div class="dialog-head"><h2>Namen & Bewertung</h2><button type="button" class="quiet" data-close="settings" aria-label="Schließen">✕</button></div><p>Bleiben lokal und werden in deiner Exportdatei mitgegeben.</p><label>Rechts · hauptsächlich<input id="name-a" maxlength="24" autocomplete="off" required></label><label>Links · hauptsächlich<input id="name-b" maxlength="24" autocomplete="off" required></label><label>Wer bewertet gerade? (optional)<input id="reviewer" maxlength="64" autocomplete="off" placeholder="Dein Name oder Kürzel"></label><button class="primary" type="submit">Namen speichern</button></form></dialog>
+  <dialog id="import-preview"><div class="dialog-head"><h2>Bewertung wiederherstellen</h2><button type="button" class="quiet" data-close="import-preview" aria-label="Schließen">✕</button></div><p id="import-summary"></p><p>Dieser Stand ersetzt die aktive Bewertung auf diesem Gerät. Dein bisheriger Stand wird zuvor lokal gesichert. Es werden keine Bewertungen zusammengeführt.</p><button id="confirm-import" class="primary">Diesen Stand übernehmen</button></dialog>
+  <dialog id="edit"><form id="edit-form"><div class="dialog-head"><h2 id="edit-title"></h2><button type="button" class="quiet" data-close="edit" aria-label="Schließen">✕</button></div><label>Typische Nutzung<select id="edit-choice"><option value="a" id="option-a"></option><option value="b" id="option-b"></option><option value="shared">Gemeinsam</option><option value="open">Noch offen</option></select></label><label id="share-control">Kostenanteil <span id="share-name"></span>: <output id="share-value"></output><input type="range" id="share" min="0" max="100" step="1"></label><p id="share-description"></p><button class="primary" type="submit">Änderung speichern</button></form></dialog>
+</body>
+</html>

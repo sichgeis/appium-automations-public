@@ -1,0 +1,15 @@
+.venv/
+node_modules/
+.appium/
+.npm-cache/
+config.local.json
+data/
+output/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.DS_Store
+.env
+*.log
+**/xcuserdata/
+*.xcuserstate

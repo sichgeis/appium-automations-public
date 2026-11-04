@@ -1,0 +1,16 @@
+{
+  "name": "appium-automations",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lokale Appium-Einrichtung für eigene iPhone-Kassenbons",
+  "scripts": {
+    "appium": "sh scripts/appium.sh --address 127.0.0.1 --port 4723 --log-level error --log-no-colors",
+    "doctor:ios": "sh scripts/appium.sh driver doctor xcuitest",
+    "wda:open": "sh scripts/appium.sh driver run xcuitest open-wda"
+  },
+  "engines": {"node": "^20.19.0 || ^22.12.0 || >=24.0.0", "npm": ">=10"},
+  "devDependencies": {
+    "appium": "3.9.0",
+    "appium-xcuitest-driver": "12.22.7"
+  }
+}

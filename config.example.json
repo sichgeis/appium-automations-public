@@ -1,0 +1,17 @@
+{
+  "server_url": "http://127.0.0.1:4723",
+  "udid": "",
+  "team_id": "",
+  "wda_bundle_id": "",
+  "transport": {
+    "kind": "icloud",
+    "directory": "~/Desktop/appium-share",
+    "folder_name": "appium-share"
+  },
+  "apps": {
+    "kaufland": {"bundle_id": "", "status": "noch nicht am Gerät verifiziert"},
+    "dm": {"bundle_id": "", "status": "noch nicht implementiert"},
+    "lidl": {"bundle_id": "", "status": "noch nicht implementiert"},
+    "rossmann": {"bundle_id": "", "status": "noch nicht implementiert"}
+  }
+}

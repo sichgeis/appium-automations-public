@@ -1,0 +1,24 @@
+// !$*UTF8*$!
+{
+ archiveVersion = 1;
+ classes = {};
+ objectVersion = 56;
+ objects = {
+  A00000000000000000000001 = {isa = PBXProject; attributes = {LastUpgradeCheck = 2700;}; buildConfigurationList = A00000000000000000000002; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = A00000000000000000000003; productRefGroup = A00000000000000000000004; projectDirPath = ""; projectRoot = ""; targets = (A00000000000000000000005);};
+  A00000000000000000000002 = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000006); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug;};
+  A00000000000000000000003 = {isa = PBXGroup; children = (A00000000000000000000007, A00000000000000000000008, A00000000000000000000004); sourceTree = "<group>";};
+  A00000000000000000000004 = {isa = PBXGroup; children = (A00000000000000000000009); name = Products; sourceTree = "<group>";};
+  A00000000000000000000005 = {isa = PBXNativeTarget; buildConfigurationList = A0000000000000000000000A; buildPhases = (A0000000000000000000000B, A0000000000000000000000C, A0000000000000000000000D); buildRules = (); dependencies = (); name = SigningProbe; productName = SigningProbe; productReference = A00000000000000000000009; productType = "com.apple.product-type.application";};
+  A00000000000000000000006 = {isa = XCBuildConfiguration; name = Debug; buildSettings = {CLANG_ENABLE_OBJC_ARC = YES; SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 17.0; DEBUG_INFORMATION_FORMAT = dwarf;};};
+  A00000000000000000000007 = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>";};
+  A00000000000000000000008 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>";};
+  A00000000000000000000009 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SigningProbe.app; sourceTree = BUILT_PRODUCTS_DIR;};
+  A0000000000000000000000A = {isa = XCConfigurationList; buildConfigurations = (A0000000000000000000000E); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug;};
+  A0000000000000000000000B = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A0000000000000000000000F); runOnlyForDeploymentPostprocessing = 0;};
+  A0000000000000000000000C = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
+  A0000000000000000000000D = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
+  A0000000000000000000000E = {isa = XCBuildConfiguration; name = Debug; buildSettings = {CODE_SIGN_STYLE = Automatic; INFOPLIST_FILE = Info.plist; PRODUCT_BUNDLE_IDENTIFIER = "$(RECEIPTBOT_PROBE_BUNDLE_ID)"; PRODUCT_NAME = "$(TARGET_NAME)"; TARGETED_DEVICE_FAMILY = 1; OTHER_LDFLAGS = ("-framework", UIKit, "-framework", Foundation);};};
+  A0000000000000000000000F = {isa = PBXBuildFile; fileRef = A00000000000000000000007;};
+ };
+ rootObject = A00000000000000000000001;
+}
