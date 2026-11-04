@@ -5,11 +5,25 @@ const aad = id => encoder.encode('household-catalog-v1:' + id);
 export const catalogStorageKey = id => id === 'synthetic-demo-v1' ? 'household-swipe-synthetic-v1' : 'household-swipe:' + id;
 export const catalogRecoveryKey = id => id === 'synthetic-demo-v1' ? 'household-swipe-before-import-v1' : 'household-before-import:' + id;
 
+function validPeople(people) {
+  return people && Object.keys(people).every(k => ['a', 'b', 'version'].includes(k))
+    && Number.isSafeInteger(people.version) && people.version >= 1
+    && ['a', 'b'].every(k => typeof people[k] === 'string' && people[k].trim() && people[k].length <= 24);
+}
+
+export function applyCatalogPeople(state, people) {
+  if (people === undefined) return state;
+  if (!validPeople(people)) throw new Error('Ungültige private Anzeigenamen.');
+  if (state.peopleVersion === people.version) return state;
+  return { ...state, names: { a: people.a, b: people.b }, peopleVersion: people.version };
+}
+
 export function validateCatalog(value) {
-  const rootKeys = new Set(['format', 'version', 'id', 'synthetic', 'revision', 'products', 'coverage', 'ledgerTotals']);
+  const rootKeys = new Set(['format', 'version', 'id', 'synthetic', 'revision', 'products', 'coverage', 'ledgerTotals', 'people']);
   if (!value || value.format !== 'household-catalog' || value.version !== 1 || !ID.test(value.id)
     || Object.keys(value).some(k => !rootKeys.has(k)) || !Number.isSafeInteger(value.coverage?.receipts) || value.coverage.receipts < 0
     || value.synthetic !== false || !/^[a-f0-9]{64}$/.test(value.revision)
+    || (value.people !== undefined && !validPeople(value.people))
     || !Array.isArray(value.products) || value.products.length > 10000) throw new Error('Ungültiger privater Katalog.');
   const ids = new Set(), purchases = new Set();
   const allowed = new Set(['id', 'name', 'brand', 'detail', 'merchant', 'count', 'quantity', 'total', 'low', 'high', 'priceLabel', 'variant', 'purchases']);
