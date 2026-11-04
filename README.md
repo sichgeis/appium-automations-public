@@ -14,7 +14,7 @@ Karten. Unklare Produkte werden nicht automatisch zusammengefasst.
 
 Fortschritt bleibt im Browser. Jedes Gerät hat eine eigene unabhängige Bewertung;
 keine Synchronisierung. Exportdateien lassen sich herunterladen, wiederherstellen
-und über das native Teilen-Menü weitergeben. Echte Einkaufsdaten sind nicht enthalten.
+und über das native Teilen-Menü weitergeben. Die frei zugängliche Demo enthält nur synthetische Daten. Ein gesondert freigegebener privater Katalog kann verschlüsselt auf Pages liegen; sein Schlüssel wird ausschließlich über einen privaten Startlink geteilt.
 
 ```sh
 npm --prefix modules/household-consumption run dev
