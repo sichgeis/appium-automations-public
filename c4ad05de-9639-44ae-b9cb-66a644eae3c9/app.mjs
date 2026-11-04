@@ -1,5 +1,5 @@
 import { products as demoProducts } from './products.mjs';
-import { loadCatalog, catalogStorageKey, catalogRecoveryKey, applyCatalogPeople } from './catalog.mjs?v=people-4';
+import { loadCatalog, catalogStorageKey, catalogRecoveryKey, applyCatalogPeople } from './catalog.mjs?v=images-5';
 import { initialState, validateState, pending, assign, undo, summary, persist, swipeDirection, defaults } from './core.mjs';
 import { MAX_BACKUP_BYTES, backupText, parseBackup, filename, shareFile, handOffShare, handOffTextShare, createBackup } from './backup.mjs?v=catalog-3';
 
@@ -21,7 +21,7 @@ $('sort-view').hidden = false;
 if (!catalog.synthetic) {
   document.title = 'Tisch für zwei · Haushaltsverbrauch';
   document.querySelector('.demo-pill').textContent = 'Privater Katalog';
-  document.querySelector('.card-foot span:last-child').textContent = 'Produktbild folgt';
+  document.querySelector('.card-foot span:last-of-type').textContent = 'Ohne Bild';
   document.querySelector('#complete p').textContent = 'Alle Produkte sind zugeordnet. In der Übersicht kannst du jede Entscheidung ändern.';
   document.querySelector('footer span:last-child').textContent = 'KATALOG / 03';
   document.querySelector('.brand').href = '#catalog=' + catalog.id;
@@ -33,6 +33,9 @@ let editing = null;
 let activeView = 'sort';
 let gesture = null;
 let importCandidate = null;
+let imageProduct = null;
+let imageRequest = 0;
+let imageObjectUrl = null;
 try {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved) state = validateState(JSON.parse(saved), products);
@@ -67,6 +70,37 @@ function illustration(p) {
   return `<svg viewBox="0 0 200 180" xmlns="http://www.w3.org/2000/svg">${base}${shape}</svg>`;
 }
 
+function renderProductImage(product) {
+  if (imageProduct === product.id) return;
+  imageProduct = product.id;
+  const request = ++imageRequest;
+  if (imageObjectUrl) { URL.revokeObjectURL(imageObjectUrl); imageObjectUrl = null; }
+  $('scene').innerHTML = illustration(product);
+  $('scene').setAttribute('aria-hidden', 'true');
+  $('image-source').hidden = true;
+  if (!catalog.synthetic) document.querySelector('.card-foot span:last-of-type').textContent = product.image ? 'Bild wird geladen' : 'Ohne Bild';
+  if (catalog.synthetic || !product.image || typeof catalog.loadImage !== 'function') return;
+  const image = product.image;
+  catalog.loadImage(image).then(blob => {
+    if (request !== imageRequest) return;
+    const url = URL.createObjectURL(blob);
+    imageObjectUrl = url;
+    const img = document.createElement('img');
+    img.alt = image.title; img.decoding = 'async'; img.referrerPolicy = 'no-referrer';
+    img.onload = () => {
+      if (request !== imageRequest) return;
+      $('scene').replaceChildren(img); $('scene').setAttribute('aria-hidden', 'false');
+      $('image-source').href = image.sourceUrl;
+      $('image-source').textContent = image.kind === 'illustrative' ? 'Beispielfoto · Quelle ↗' : 'Produktbild · Quelle ↗';
+      $('image-source').title = [image.title, image.credit, image.license].filter(Boolean).join(' · ');
+      $('image-source').hidden = false;
+      document.querySelector('.card-foot span:last-of-type').textContent = image.kind === 'illustrative' ? 'Beispielfoto' : 'Produktfoto';
+    };
+    img.onerror = () => { if (request === imageRequest) { URL.revokeObjectURL(url); imageObjectUrl = null; document.querySelector('.card-foot span:last-of-type').textContent = 'Bild nicht geladen'; } };
+    img.src = url;
+  }).catch(() => { if (request === imageRequest) document.querySelector('.card-foot span:last-of-type').textContent = 'Bild nicht geladen'; });
+}
+
 function render() {
   const ids = pending(state, products);
   const s = summary(state, products);
@@ -93,7 +127,7 @@ function render() {
     const p = products.find(p => p.id === ids[0]);
     $('merchant').textContent = p.merchant;
     $('variant').textContent = p.variant ?? 'Wiederholungskäufe';
-    $('scene').innerHTML = illustration(p);
+    renderProductImage(p);
     $('product-brand').textContent = p.brand;
     $('product-title').textContent = p.name; $('product-detail').textContent = p.detail;
     $('purchase-count').textContent = `${p.count} Bons`; $('total').textContent = money(p.total);
@@ -265,6 +299,7 @@ function cancelGesture() {
   gesture = null; card.style.transform = ''; $('swipe-stamp').style.opacity = '0';
 }
 card.addEventListener('pointerdown', e => {
+  if (e.target.closest('a, button, input, select, textarea')) return;
   if (!e.isPrimary || e.button !== 0 || gesture || storageBlocked) return;
   gesture = { id: e.pointerId, x: e.clientX, y: e.clientY };
   card.setPointerCapture(e.pointerId);
