@@ -148,6 +148,12 @@ def build_catalog(receipts, catalog_id, rules=None):
         raise ValueError('Katalogsumme nicht nachvollziehbar.')
     payload = {'format': 'household-catalog', 'version': 1, 'id': catalog_id, 'synthetic': False,
                'products': cards, 'coverage': dict(counts), 'ledgerTotals': totals}
+    people = (rules or {}).get('people')
+    if people is not None:
+        if (not isinstance(people, dict) or set(people) != {'a', 'b', 'version'} or type(people['version']) is not int or people['version'] < 1
+                or any(not isinstance(people[k], str) or not people[k].strip() or len(people[k]) > 24 for k in ('a', 'b'))):
+            raise ValueError('Ungültige private Anzeigenamen.')
+        payload['people'] = dict(people)
     payload['revision'] = sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
     candidates = defaultdict(list)
     for pid, p in purchases.items(): candidates[(p['merchant'], p['name'])].append(pid)

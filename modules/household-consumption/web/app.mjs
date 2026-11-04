@@ -1,5 +1,5 @@
 import { products as demoProducts } from './products.mjs';
-import { loadCatalog, catalogStorageKey, catalogRecoveryKey } from './catalog.mjs?v=catalog-3';
+import { loadCatalog, catalogStorageKey, catalogRecoveryKey, applyCatalogPeople } from './catalog.mjs?v=people-4';
 import { initialState, validateState, pending, assign, undo, summary, persist, swipeDirection, defaults } from './core.mjs';
 import { MAX_BACKUP_BYTES, backupText, parseBackup, filename, shareFile, handOffShare, handOffTextShare, createBackup } from './backup.mjs?v=catalog-3';
 
@@ -37,7 +37,9 @@ try {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved) state = validateState(JSON.parse(saved), products);
   if (!state.assessment) state = { ...state, assessment: initialState().assessment };
-  if (!saved || !JSON.parse(saved).assessment) state = persist(localStorage, state, products, STORAGE_KEY);
+  const previousPeopleVersion = state.peopleVersion;
+  state = applyCatalogPeople(state, catalog.people);
+  if (!saved || !JSON.parse(saved).assessment || previousPeopleVersion !== state.peopleVersion) state = persist(localStorage, state, products, STORAGE_KEY);
 } catch {
   storageBlocked = true;
   showError('Der lokale Demostand konnte nicht geladen werden. Er bleibt unverändert. Bitte einen anderen Browser verwenden oder den Browserspeicher prüfen.');
@@ -46,7 +48,7 @@ try {
 function showError(message) { $('error').textContent = message; $('error').hidden = false; }
 function save(next) {
   if (storageBlocked) return false;
-  try { state = persist(localStorage, { ...next, savedAt: new Date().toISOString() }, products, STORAGE_KEY); $('error').hidden = true; return true; }
+  try { state = persist(localStorage, { ...applyCatalogPeople(next, catalog.people), savedAt: new Date().toISOString() }, products, STORAGE_KEY); $('error').hidden = true; return true; }
   catch { showError('Speichern fehlgeschlagen. Die Entscheidung wurde nicht übernommen. Bitte den Browserspeicher prüfen.'); return false; }
 }
 function label(choice) { return choice === 'shared' ? 'Gemeinsam' : `Hauptsächlich ${state.names[choice]}`; }

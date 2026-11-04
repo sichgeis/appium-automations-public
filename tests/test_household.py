@@ -22,6 +22,16 @@ def receipt(items, **extra):
 
 
 class HouseholdTests(unittest.TestCase):
+    def test_optional_private_people_do_not_change_product_ids(self):
+        records = [receipt([item(1)])]
+        old = build_catalog(records, CATALOG)[0]
+        people = {'a': 'Test rechts', 'b': 'Test links', 'version': 1}
+        updated = build_catalog(records, CATALOG, {'people': people})[0]
+        self.assertEqual(updated['people'], people)
+        self.assertEqual(old['products'], updated['products'])
+        self.assertNotEqual(old['revision'], updated['revision'])
+        with self.assertRaises(ValueError): build_catalog(records, CATALOG, {'people': {'a': '', 'b': 'Test', 'version': 1}})
+
     def test_generic_short_text_stays_separate_and_opaque_ids_are_stable(self):
         record = receipt([item(1, name='SCHOKOLADE'), item(2, name='SCHOKOLADE')])
         catalog, lineage, candidates = build_catalog([record], CATALOG)

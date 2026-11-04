@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateCatalog, sealCatalog, openCatalog, encodeKey, loadCatalog, catalogStorageKey } from '../web/catalog.mjs';
+import { validateCatalog, sealCatalog, openCatalog, encodeKey, loadCatalog, catalogStorageKey, applyCatalogPeople } from '../web/catalog.mjs';
 import { initialState, assign, persist, summary } from '../web/core.mjs';
 import { createBackup, parseBackup } from '../web/backup.mjs';
 
@@ -38,6 +38,29 @@ test('catalog validation rejects unexpected private metadata and incorrect purch
   assert.throws(() => validateCatalog(catalog)); delete catalog.source;
   catalog.products[0].total++;
   assert.throws(() => validateCatalog(catalog));
+});
+test('private labels are encrypted and migrate existing assessments without changing swipes', async () => {
+  const catalog = fixture(); catalog.people = { a: 'Test rechts', b: 'Test links', version: 1 };
+  const sealed = await sealCatalog(catalog);
+  const opened = await openCatalog(sealed.bytes, sealed.key, id);
+  assert.deepEqual(opened.people, catalog.people);
+  assert.equal(new TextDecoder().decode(sealed.bytes).includes(catalog.people.a), false);
+  const old = assign(initialState(), catalog.products[0].id, 'shared', 72);
+  old.queue = [catalog.products[0].id];
+  const migrated = applyCatalogPeople(old, opened.people);
+  assert.deepEqual(migrated.decisions, old.decisions);
+  assert.deepEqual(migrated.history, old.history);
+  assert.deepEqual(migrated.queue, old.queue);
+  assert.deepEqual(migrated.assessment, old.assessment);
+  assert.deepEqual(migrated.names, { a: 'Test rechts', b: 'Test links' });
+  migrated.names.a = 'Lokale Anpassung';
+  assert.equal(applyCatalogPeople(migrated, opened.people).names.a, 'Lokale Anpassung');
+  assert.equal(applyCatalogPeople(old, undefined), old);
+});
+test('invalid label metadata is rejected before applying or decrypting a catalog', () => {
+  const catalog = fixture(); catalog.people = { a: '', b: 'Test links', version: 1 };
+  assert.throws(() => validateCatalog(catalog));
+  assert.throws(() => applyCatalogPeople(initialState(), catalog.people));
 });
 test('automatic link loading strips key before fetching, never transmits it and resumes without import UI', async () => {
   const catalog = fixture(); const sealed = await sealCatalog(catalog); const key = encodeKey(sealed.key);
