@@ -1,0 +1,5 @@
+# Index exclusion is supplied by noindex on every HTML page.
+# Do not block crawling: crawlers must be able to read noindex.
+# On project Pages, the effective robots.txt belongs at the domain root.
+User-agent: *
+Disallow:
