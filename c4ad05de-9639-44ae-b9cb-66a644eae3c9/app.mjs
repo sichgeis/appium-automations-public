@@ -1,9 +1,32 @@
-import { products } from './products.mjs';
-import { STORAGE_KEY, initialState, validateState, pending, assign, undo, summary, persist, swipeDirection, defaults } from './core.mjs';
-import { RECOVERY_KEY, MAX_BACKUP_BYTES, backupText, parseBackup, filename, shareFile, handOffShare, handOffTextShare, createBackup } from './backup.mjs?v=signal-2';
+import { products as demoProducts } from './products.mjs';
+import { loadCatalog, catalogStorageKey, catalogRecoveryKey } from './catalog.mjs?v=catalog-3';
+import { initialState, validateState, pending, assign, undo, summary, persist, swipeDirection, defaults } from './core.mjs';
+import { MAX_BACKUP_BYTES, backupText, parseBackup, filename, shareFile, handOffShare, handOffTextShare, createBackup } from './backup.mjs?v=catalog-3';
 
 const $ = id => document.getElementById(id);
 const money = n => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n / 100);
+let catalog;
+$('sort-view').hidden = true;
+try {
+  catalog = await loadCatalog({ location: window.location, history: window.history, storage: localStorage, demoProducts });
+} catch (error) {
+  $('error').textContent = error.message; $('error').hidden = false;
+  document.querySelector('.backup-panel').hidden = true;
+  throw new Error('Katalogstart angehalten.');
+}
+const products = catalog.products;
+const STORAGE_KEY = catalogStorageKey(catalog.id);
+const RECOVERY_KEY = catalogRecoveryKey(catalog.id);
+$('sort-view').hidden = false;
+if (!catalog.synthetic) {
+  document.title = 'Tisch für zwei · Haushaltsverbrauch';
+  document.querySelector('.demo-pill').textContent = 'Privater Katalog';
+  document.querySelector('.card-foot span:last-child').textContent = 'Produktbild folgt';
+  document.querySelector('#complete p').textContent = 'Alle Produkte sind zugeordnet. In der Übersicht kannst du jede Entscheidung ändern.';
+  document.querySelector('footer span:last-child').textContent = 'KATALOG / 03';
+  document.querySelector('.brand').href = '#catalog=' + catalog.id;
+}
+
 let state = initialState();
 let storageBlocked = false;
 let editing = null;
@@ -14,7 +37,7 @@ try {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved) state = validateState(JSON.parse(saved), products);
   if (!state.assessment) state = { ...state, assessment: initialState().assessment };
-  if (!saved || !JSON.parse(saved).assessment) state = persist(localStorage, state, products);
+  if (!saved || !JSON.parse(saved).assessment) state = persist(localStorage, state, products, STORAGE_KEY);
 } catch {
   storageBlocked = true;
   showError('Der lokale Demostand konnte nicht geladen werden. Er bleibt unverändert. Bitte einen anderen Browser verwenden oder den Browserspeicher prüfen.');
@@ -23,13 +46,15 @@ try {
 function showError(message) { $('error').textContent = message; $('error').hidden = false; }
 function save(next) {
   if (storageBlocked) return false;
-  try { state = persist(localStorage, { ...next, savedAt: new Date().toISOString() }, products); $('error').hidden = true; return true; }
+  try { state = persist(localStorage, { ...next, savedAt: new Date().toISOString() }, products, STORAGE_KEY); $('error').hidden = true; return true; }
   catch { showError('Speichern fehlgeschlagen. Die Entscheidung wurde nicht übernommen. Bitte den Browserspeicher prüfen.'); return false; }
 }
 function label(choice) { return choice === 'shared' ? 'Gemeinsam' : `Hauptsächlich ${state.names[choice]}`; }
 function announce(text) { $('announcement').textContent = text; }
 
 function illustration(p) {
+  if (!catalog.synthetic) return '<svg viewBox="0 0 200 180" xmlns="http://www.w3.org/2000/svg"><path d="M45 65h110l-10 90H55z" fill="#dce6d1"/><path d="M76 68V51a24 24 0 0148 0v17" fill="none" stroke="#6c8c61" stroke-width="8"/><path d="M80 100h40m-20-20v40" stroke="#719064" stroke-width="5"/></svg>';
+
   // Only trusted, synthetic fixture values enter this SVG; no imported HTML.
   const base = `<ellipse cx="100" cy="166" rx="65" ry="7" fill="#293a2412"/>`;
   let shape;
@@ -47,7 +72,7 @@ function render() {
   $('remaining-badge').textContent = ids.length;
   $('assigned-badge').textContent = s.count;
   $('progress-label').textContent = `${s.count} von ${products.length} Produkten zugeordnet`;
-  $('coverage-label').textContent = `${Math.round(s.assigned / all * 100)} % des Warenwerts`;
+  $('coverage-label').textContent = `${all ? Math.round(s.assigned / all * 100) : 0} % des Warenwerts`;
   $('progress').max = products.length; $('progress').value = s.count;
   $('label-a').textContent = state.names.a; $('label-b').textContent = state.names.b;
   $('choose-b').setAttribute('aria-label', `Hauptsächlich ${state.names.b}`);
@@ -58,7 +83,7 @@ function render() {
   $('decision-controls').hidden = done; $('skip').hidden = done;
   $('undo').disabled = storageBlocked || !state.history.length;
   $('reviewer-tag').textContent = state.assessment.reviewer || 'Eigener Gerätestand';
-  $('save-status').textContent = state.savedAt ? '✓ Auf diesem Gerät gespeichert · keine Synchronisierung' : '◉ Nur auf diesem Browser gespeichert. Keine echten Bons.';
+  $('save-status').textContent = state.savedAt ? '✓ Auf diesem Gerät gespeichert · keine Synchronisierung' : (catalog.synthetic ? '◉ Nur auf diesem Browser gespeichert. Keine echten Bons.' : '◉ Bewertung bleibt auf diesem Gerät.');
   for (const id of ['export', 'share-backup', 'share-text', 'download-backup', 'import-backup', 'recovery-backup', 'confirm-import', 'import-text', 'preview-text']) $(id).disabled = storageBlocked;
   try { $('recovery-backup').hidden = !localStorage.getItem(RECOVERY_KEY); } catch { $('recovery-backup').hidden = true; }
   for (const id of ['choose-a', 'choose-b', 'choose-shared', 'skip']) $(id).disabled = storageBlocked;
@@ -70,12 +95,12 @@ function render() {
     $('product-brand').textContent = p.brand;
     $('product-title').textContent = p.name; $('product-detail').textContent = p.detail;
     $('purchase-count').textContent = `${p.count} Bons`; $('total').textContent = money(p.total);
-    $('price-label').textContent = p.weight ? 'Preis / kg' : 'Preis / Packung';
+    $('price-label').textContent = p.priceLabel ?? (p.weight ? 'Preis / kg' : 'Preis / Packung');
     $('price').textContent = p.low === null ? 'unbekannt' : p.low === p.high ? money(p.low) : `${money(p.low)}–${money(p.high)}`;
     $('quantity').textContent = p.quantity;
     $('product-card').setAttribute('aria-label', `${p.name}. ${p.detail}. Nach links, oben oder rechts wischen.`);
   }
-  renderOverview(s);
+  if (activeView === 'overview') renderOverview(s);
 }
 
 function element(tag, text, cls) {
@@ -85,7 +110,13 @@ function renderOverview(s) {
   $('totals').replaceChildren(...['a', 'b'].map(k => {
     const tile = element('div', undefined, 'total-tile'); tile.append(element('span', state.names[k]), element('strong', money(s[k]))); return tile;
   }));
-  $('open-cost').textContent = `${money(s.open)} noch offen · ${s.count} von ${products.length} Produkten zugeordnet. Alle Beträge sind erfunden.`;
+  $('open-cost').textContent = `${money(s.open)} noch offen · ${s.count} von ${products.length} Produkten zugeordnet. ${catalog.synthetic ? 'Alle Beträge sind erfunden.' : 'Kaufbezogene Warenkosten nach direkt zugeordneten Produktrabatten; Pfand, andere Waren und offene Rabatte separat.'}`;
+  if (!catalog.synthetic) {
+    const labels = { deposit: 'Pfand', other: 'Andere Waren', refund: 'Rückgaben', discount: 'Weitere Rabatte' };
+    $('ledger-summary').hidden = false;
+    $('ledger-summary').replaceChildren(element('p', `${catalog.coverage.receipts} erfasste Bons. Außerhalb der zugeordneten Lebensmittelkosten:`),
+      ...Object.entries(labels).filter(([key]) => catalog.ledgerTotals[key]).map(([key, name]) => element('p', `${name}: ${money(catalog.ledgerTotals[key])}`)));
+  }
   $('product-list').replaceChildren(...products.map(p => {
     const d = state.decisions[p.id];
     const row = element('button', undefined, 'product-row'); row.type = 'button';
@@ -100,6 +131,7 @@ function renderOverview(s) {
 }
 function changeView(view) {
   cancelGesture(); activeView = view;
+  if (view === 'overview') renderOverview(summary(state, products));
   $('sort-view').hidden = view !== 'sort'; $('overview-view').hidden = view !== 'overview';
   for (const v of ['sort', 'overview']) { $(`${v}-tab`).classList.toggle('active', v === view); $(`${v}-tab`).setAttribute('aria-selected', String(v === view)); }
 }
@@ -152,7 +184,7 @@ $('edit-form').onsubmit = e => {
 function backupStatus(text) { $('backup-status').textContent = text; }
 function downloadBackup() {
   if (storageBlocked) return;
-  const blob = new Blob([backupText(state, products)], { type: 'application/json' });
+  const blob = new Blob([backupText(state, products, catalog.id)], { type: 'application/json' });
   const url = URL.createObjectURL(blob); const a = element('a');
   a.href = url; a.download = filename(state); document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 30000);
@@ -162,7 +194,7 @@ $('export').onclick = $('download-backup').onclick = downloadBackup;
 $('share-backup').onclick = async () => {
   if (storageBlocked) return;
   // No awaits before share(): preserve the user gesture required by mobile browsers.
-  const file = shareFile(navigator, backupText(state, products), state);
+  const file = shareFile(navigator, backupText(state, products, catalog.id), state);
   if (!file) {
     downloadBackup();
     backupStatus('Dieser Browser unterstützt das Dateiteilen nicht. Download gestartet: bitte die Datei direkt in Signal oder Mail anhängen. Alternativ „Als Nachricht teilen“ verwenden.');
@@ -179,7 +211,7 @@ $('share-text').onclick = async () => {
   if (storageBlocked) return;
   $('share-text').disabled = true;
   try {
-    const result = await handOffTextShare(navigator, JSON.stringify(createBackup(state, products)));
+    const result = await handOffTextShare(navigator, JSON.stringify(createBackup(state, products, new Date(), catalog.id)));
     backupStatus(result === 'cancelled' ? 'Teilen abgebrochen. Deine Bewertung bleibt gespeichert.' : 'Bewertung als Nachricht übergeben. Bitte prüfen, dass Signal den vollständigen Text zeigt. Empfangene Nachrichten lassen sich über „Text wiederherstellen“ importieren.');
   } catch (error) { backupStatus(error.message); }
   finally { $('share-text').disabled = storageBlocked; }
@@ -187,14 +219,14 @@ $('share-text').onclick = async () => {
 function previewImport(restored) {
   importCandidate = restored;
   const sum = summary(restored, products);
-  $('import-summary').textContent = `${restored.assessment.reviewer || 'Bewertung ohne Namen'} · ${sum.count} von ${products.length} Produkten zugeordnet · ${restored.assessment.id === state.assessment.id ? 'dieselbe Bewertung' : 'andere unabhängige Bewertung'}.`;
+  $('import-summary').textContent = `${restored.assessment.reviewer || 'Bewertung ohne Namen'} · ${sum.count} von ${products.length} Produkten zugeordnet · ${restored.assessment.id === state.assessment.id ? 'dieselbe Bewertung' : 'andere unabhängige Bewertung'}.${catalog.synthetic ? '' : ' Kompakter Export: frühere Rückgängig-Schritte sind nicht enthalten.'}`;
   $('import-preview').showModal();
 }
 $('import-backup').onclick = () => { $('backup-file').value = ''; $('backup-file').click(); };
 $('import-text').onclick = () => { $('backup-text').value = ''; $('text-import-error').textContent = ''; $('text-import').showModal(); };
 $('preview-text').onclick = () => {
   try {
-    const restored = parseBackup($('backup-text').value.trim(), products);
+    const restored = parseBackup($('backup-text').value.trim(), products, catalog.id);
     $('text-import').close(); previewImport(restored);
   } catch (error) { $('text-import-error').textContent = error.message; }
 };
@@ -202,18 +234,18 @@ $('backup-file').onchange = async () => {
   const file = $('backup-file').files[0]; if (!file || storageBlocked) return;
   try {
     if (file.size > MAX_BACKUP_BYTES) throw new Error('Die Datei ist zu groß (maximal 2 MB).');
-    previewImport(parseBackup(await file.text(), products));
+    previewImport(parseBackup(await file.text(), products, catalog.id));
   } catch (error) { backupStatus(error.message); }
 };
 $('recovery-backup').onclick = () => {
-  try { previewImport(parseBackup(localStorage.getItem(RECOVERY_KEY), products)); }
+  try { previewImport(parseBackup(localStorage.getItem(RECOVERY_KEY), products, catalog.id)); }
   catch (error) { backupStatus(error.message); }
 };
 $('confirm-import').onclick = () => {
   if (!importCandidate || storageBlocked) return;
   try {
     // Save the old assessment first. On failure the active state remains unchanged.
-    localStorage.setItem(RECOVERY_KEY, backupText(state, products));
+    localStorage.setItem(RECOVERY_KEY, backupText(state, products, catalog.id));
     if (save(importCandidate)) {
       importCandidate = null; $('import-preview').close(); render();
       backupStatus('Bewertung wiederhergestellt. Den Stand vor diesem Import kannst du hier ebenfalls wiederherstellen.');

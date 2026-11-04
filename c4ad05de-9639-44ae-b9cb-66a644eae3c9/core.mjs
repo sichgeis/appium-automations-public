@@ -43,16 +43,16 @@ export function summary(state, products) {
   return products.reduce((sum, p) => {
     const d = state.decisions[p.id];
     if (!d) { sum.open += p.total; return sum; }
-    const a = Math.round(p.total * d.shareA / 100);
+    const a = (p.purchases ?? [{ amount: p.total }]).reduce((n, purchase) => n + Math.round(purchase.amount * d.shareA / 100), 0);
     sum.a += a; sum.b += p.total - a; sum.assigned += p.total; sum.count++;
     return sum;
   }, { a: 0, b: 0, open: 0, assigned: 0, count: 0 });
 }
 
 // Only commit the in-memory state after a successful durable write.
-export function persist(storage, next, products) {
+export function persist(storage, next, products, key = STORAGE_KEY) {
   validateState(next, products);
-  storage.setItem(STORAGE_KEY, JSON.stringify(next));
+  storage.setItem(key, JSON.stringify(next));
   return next;
 }
 
