@@ -7,8 +7,8 @@
   <meta name="referrer" content="no-referrer">
   <meta name="theme-color" content="#f6f5ef">
   <title>Tisch für zwei · Swipe-Prototyp</title>
-  <link rel="stylesheet" href="./style.css?v=images-5">
-  <script type="module" src="./app.mjs?v=images-5"></script>
+  <link rel="stylesheet" href="./style.css?v=groups-6">
+  <script type="module" src="./app.mjs?v=groups-6"></script>
 </head>
 <body>
   <header class="topbar"><a class="brand" href="./"><span class="brand-icon" aria-hidden="true">◒</span> tisch für zwei<span class="brand-dot">.</span></a><button id="settings-open" class="quiet" aria-label="Namen einstellen">⚙ <span>Namen</span></button></header>
@@ -17,6 +17,7 @@
     <section class="intro"><h1>Wer isst was?</h1><p>Ein Produkt. Eine kleine Entscheidung.</p></section>
     <nav class="tabs" aria-label="Ansicht"><button class="active" id="sort-tab" aria-selected="true">Zuordnen <span id="remaining-badge"></span></button><button id="overview-tab" aria-selected="false">Übersicht <span id="assigned-badge"></span></button></nav>
     <div id="error" role="alert" hidden></div>
+    <p id="grouping-note" class="grouping-note" role="status" hidden></p>
     <section id="sort-view" aria-label="Produkte zuordnen">
       <div class="progress-heading"><span id="progress-label"></span><span id="coverage-label"></span></div>
       <progress id="progress" value="0" max="10" aria-label="Zugeordnete Produkte"></progress>
@@ -37,7 +38,7 @@
       <p class="local-note" id="save-status">◉ Nur auf diesem Browser gespeichert. Keine echten Bons.</p>
     </section>
     <section id="overview-view" hidden aria-label="Zuordnungen und Kosten"><div class="overview-heading"><h2>So teilt es sich auf.</h2><p>Kostenannahmen, kein gemessener Verzehr.</p></div><div id="totals" class="totals"></div><p class="overview-note" id="open-cost"></p><div class="list-heading"><h3>Deine Entscheidungen</h3><button id="export" class="quiet">Sicherung ↓</button></div><p class="overview-note">Produkt antippen, um Zuordnung oder Kostenanteil zu ändern.</p><div id="product-list"></div><div id="ledger-summary" class="overview-note" hidden></div></section>
-    <section class="backup-panel" aria-label="Bewertung sichern"><div class="list-heading"><h3>Deine Bewertung mitnehmen</h3><span class="assessment-tag" id="reviewer-tag"></span></div><p>Deine Swipes bleiben auf diesem Gerät. Teile die Exportdatei per Mail oder Messenger, damit deine Bewertung zurückkommt. Andere Geräte bewerten unabhängig. Signal übernimmt keine Datei? Nutze „Als Nachricht teilen“.</p><div class="backup-buttons"><button id="share-backup" class="primary">Bewertung teilen ↗</button><button id="share-text" class="secondary">Als Nachricht teilen ↗</button><button id="download-backup" class="secondary">Datei herunterladen ↓</button><button id="import-backup" class="quiet">Datei wiederherstellen</button><button id="import-text" class="quiet">Text wiederherstellen</button><button id="recovery-backup" class="quiet" hidden>Stand vor letztem Import</button></div><input type="file" id="backup-file" accept=".json,.txt,application/json,text/plain" hidden><p id="backup-status" role="status" aria-live="polite"></p></section>
+    <section class="backup-panel" aria-label="Bewertung sichern"><div class="list-heading"><h3>Deine Bewertung mitnehmen</h3><span class="assessment-tag" id="reviewer-tag"></span></div><p>Deine Swipes bleiben auf diesem Gerät. Teile die Exportdatei per Mail oder Messenger, damit deine Bewertung zurückkommt. Andere Geräte bewerten unabhängig. Signal übernimmt keine Datei? Nutze „Als Nachricht teilen“.</p><div class="backup-buttons"><button id="share-backup" class="primary">Bewertung teilen ↗</button><button id="share-text" class="secondary">Als Nachricht teilen ↗</button><button id="download-backup" class="secondary">Datei herunterladen ↓</button><button id="download-before-grouping" type="button" hidden>Stand vor Zusammenfassung herunterladen ↓</button><button id="import-backup" class="quiet">Datei wiederherstellen</button><button id="import-text" class="quiet">Text wiederherstellen</button><button id="recovery-backup" class="quiet" hidden>Stand vor letztem Import</button></div><input type="file" id="backup-file" accept=".json,.txt,application/json,text/plain" hidden><p id="backup-status" role="status" aria-live="polite"></p></section>
     <p id="announcement" class="sr-only" role="status" aria-live="polite"></p>
   </main>
   <footer><span>Ein gemeinsamer Tisch. Euer eigener Überblick.</span><span>DEMO / 02</span></footer>

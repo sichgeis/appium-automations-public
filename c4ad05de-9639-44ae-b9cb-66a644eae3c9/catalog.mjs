@@ -1,3 +1,4 @@
+import { validateRegrouping } from './core.mjs?v=groups-6';
 const ID = /^catalog-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MAGIC = new Uint8Array([72, 72, 67, 49]);
 const IMAGE_MAGIC = new Uint8Array([72, 72, 73, 49]);
@@ -22,7 +23,7 @@ export function applyCatalogPeople(state, people) {
 }
 
 export function validateCatalog(value) {
-  const rootKeys = new Set(['format', 'version', 'id', 'synthetic', 'revision', 'products', 'coverage', 'ledgerTotals', 'people']);
+  const rootKeys = new Set(['format', 'version', 'id', 'synthetic', 'revision', 'products', 'coverage', 'ledgerTotals', 'people', 'regrouping']);
   if (!value || value.format !== 'household-catalog' || value.version !== 1 || !ID.test(value.id)
     || Object.keys(value).some(k => !rootKeys.has(k)) || !Number.isSafeInteger(value.coverage?.receipts) || value.coverage.receipts < 0
     || value.synthetic !== false || !/^[a-f0-9]{64}$/.test(value.revision)
@@ -54,6 +55,10 @@ export function validateCatalog(value) {
       purchases.add(purchase.id);
     }
     if (p.purchases.reduce((n, p) => n + p.amount, 0) !== p.total) throw new Error('Kaufsumme passt nicht zur Karte.');
+  }
+  if (value.regrouping !== undefined) {
+    validateRegrouping(value.regrouping, value.products);
+    if (!value.regrouping || !value.regrouping.sources.every(s => /^p-[a-f0-9]{24}$/.test(s.id))) throw new Error('Ungültige frühere Produktkennung.');
   }
   if (!value.ledgerTotals || !Object.values(value.ledgerTotals).every(Number.isSafeInteger)
     || value.products.reduce((n, p) => n + p.total, 0) !== (value.ledgerTotals.food ?? 0) + (value.ledgerTotals.food_discount ?? 0)) throw new Error('Katalogsummen nicht nachvollziehbar.');
