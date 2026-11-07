@@ -65,3 +65,6 @@ Bereitstellung. Schlüssel bleiben lokal. Siehe [Migration](MIGRATION.md).
 Packungsgrößen und Angebotspreise werden innerhalb gleicher Händlerbezeichnung
 und Sorte zusammengefasst. Preisbereiche dienen als Orientierung; tatsächliche
 Kaufbeträge bestimmen die Kostenanteile. Keine exakte Verzehrmessung.
+
+
+Seit 07.11.2026: explizit geprüfte markenübergreifende Verbrauchsgruppen und aufgelöste Bonkürzel. Konsensbewertungen werden übernommen; Konflikte und Teilbewertungen bleiben offen. Sichere Migration und Erhalt der früheren Bewertung: [Migration](MIGRATION.md).

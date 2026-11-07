@@ -135,3 +135,14 @@ test('650-card assessment fits messenger limit without product names or undo his
   assert.throws(() => parseBackup(text, catalog.products, id.replace(/1$/, '2')));
   assert.throws(() => parseBackup(text, catalog.products));
 });
+
+
+test('encrypted regrouping metadata covers current cards and rejects foreign or private fields', async () => {
+  const catalog = fixture();
+  catalog.regrouping = { version: 1, sources: [{ id: 'p-' + 'f'.repeat(24), target: catalog.products[0].id }] };
+  const encrypted = await sealCatalog(catalog);
+  assert.deepEqual((await openCatalog(encrypted.bytes, encrypted.key, id)).regrouping, catalog.regrouping);
+  for (const change of [c => { c.regrouping.privateName = 'forbidden'; }, c => { c.regrouping.sources[0].sourcePath = 'forbidden'; }, c => { c.regrouping.sources[0].id = 'not-a-product'; }, c => { c.regrouping.sources[0].target = 'p-' + 'e'.repeat(24); }, c => { c.regrouping.sources = []; }, c => { c.regrouping = null; }]) {
+    const invalid = structuredClone(catalog); change(invalid); assert.throws(() => validateCatalog(invalid));
+  }
+});

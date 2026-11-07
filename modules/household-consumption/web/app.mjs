@@ -1,7 +1,7 @@
 import { products as demoProducts } from './products.mjs';
-import { loadCatalog, catalogStorageKey, catalogRecoveryKey, applyCatalogPeople } from './catalog.mjs?v=images-5';
-import { initialState, validateState, pending, assign, undo, summary, persist, swipeDirection, defaults } from './core.mjs';
-import { MAX_BACKUP_BYTES, backupText, parseBackup, filename, shareFile, handOffShare, handOffTextShare, createBackup } from './backup.mjs?v=catalog-3';
+import { loadCatalog, catalogStorageKey, catalogRecoveryKey, applyCatalogPeople } from './catalog.mjs?v=groups-6';
+import { initialState, validateState, regroupState, pending, assign, undo, summary, persist, swipeDirection, defaults } from './core.mjs?v=groups-6';
+import { MAX_BACKUP_BYTES, backupText, parseBackup, filename, shareFile, handOffShare, handOffTextShare, createBackup } from './backup.mjs?v=groups-6';
 
 const $ = id => document.getElementById(id);
 const money = n => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n / 100);
@@ -17,6 +17,7 @@ try {
 const products = catalog.products;
 const STORAGE_KEY = catalogStorageKey(catalog.id);
 const RECOVERY_KEY = catalogRecoveryKey(catalog.id);
+const GROUP_RECOVERY_KEY = catalog.regrouping ? 'household-before-grouping:' + catalog.id + ':' + catalog.regrouping.version : null;
 $('sort-view').hidden = false;
 if (!catalog.synthetic) {
   document.title = 'Tisch für zwei · Haushaltsverbrauch';
@@ -38,14 +39,22 @@ let imageRequest = 0;
 let imageObjectUrl = null;
 try {
   const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved) state = validateState(JSON.parse(saved), products);
+  if (saved) {
+    const old = JSON.parse(saved);
+    state = regroupState(old, products, catalog.regrouping);
+    if (catalog.regrouping && old.groupingVersion !== state.groupingVersion) {
+      const key = GROUP_RECOVERY_KEY;
+      // Preserve the complete old assessment before changing any durable state.
+      if (localStorage.getItem(key) === null) localStorage.setItem(key, saved);
+    }
+  } else if (catalog.regrouping) state = regroupState(state, products, catalog.regrouping);
   if (!state.assessment) state = { ...state, assessment: initialState().assessment };
   const previousPeopleVersion = state.peopleVersion;
   state = applyCatalogPeople(state, catalog.people);
-  if (!saved || !JSON.parse(saved).assessment || previousPeopleVersion !== state.peopleVersion) state = persist(localStorage, state, products, STORAGE_KEY);
+  if (!saved || !JSON.parse(saved).assessment || previousPeopleVersion !== state.peopleVersion || JSON.parse(saved).groupingVersion !== state.groupingVersion) state = persist(localStorage, state, products, STORAGE_KEY);
 } catch {
   storageBlocked = true;
-  showError('Der lokale Demostand konnte nicht geladen werden. Er bleibt unverändert. Bitte einen anderen Browser verwenden oder den Browserspeicher prüfen.');
+  showError('Der lokale Bewertungsstand konnte nicht geladen werden. Er bleibt unverändert. Bitte einen anderen Browser verwenden oder den Browserspeicher prüfen.');
 }
 
 function showError(message) { $('error').textContent = message; $('error').hidden = false; }
@@ -91,10 +100,10 @@ function renderProductImage(product) {
       if (request !== imageRequest) return;
       $('scene').replaceChildren(img); $('scene').setAttribute('aria-hidden', 'false');
       $('image-source').href = image.sourceUrl;
-      $('image-source').textContent = image.kind === 'illustrative' ? 'Beispielfoto · Quelle ↗' : 'Produktbild · Quelle ↗';
+      $('image-source').textContent = image.kind === 'illustrative' ? 'Beispielbild · Quelle ↗' : 'Produktbild · Quelle ↗';
       $('image-source').title = [image.title, image.credit, image.license].filter(Boolean).join(' · ');
       $('image-source').hidden = false;
-      document.querySelector('.card-foot span:last-of-type').textContent = image.kind === 'illustrative' ? 'Beispielfoto' : 'Produktfoto';
+      document.querySelector('.card-foot span:last-of-type').textContent = image.kind === 'illustrative' ? 'Beispielbild' : 'Produktfoto';
     };
     img.onerror = () => { if (request === imageRequest) { URL.revokeObjectURL(url); imageObjectUrl = null; document.querySelector('.card-foot span:last-of-type').textContent = 'Bild nicht geladen'; } };
     img.src = url;
@@ -114,13 +123,19 @@ function render() {
   $('choose-b').setAttribute('aria-label', `Hauptsächlich ${state.names.b}`);
   $('choose-a').setAttribute('aria-label', `Hauptsächlich ${state.names.a}`);
   $('choose-shared').setAttribute('aria-label', 'Gemeinsam, 50/50');
+  const conflicts = (state.groupingConflicts ?? []).filter(id => !state.decisions[id]);
+  $('grouping-note').hidden = !conflicts.length;
+  $('grouping-note').textContent = conflicts.length
+    ? `Ähnliche Produkte wurden zusammengefasst. ${conflicts.length} Gruppen waren bisher unterschiedlich bewertet und sind erneut offen. Der frühere Stand bleibt auf diesem Gerät gesichert.`
+    : 'Ähnliche Produkte wurden zusammengefasst. Übereinstimmende Bewertungen wurden übernommen; noch nicht vollständig bewertete Gruppen bleiben offen.';
   const done = ids.length === 0;
   $('deck').hidden = done; $('complete').hidden = !done;
   $('decision-controls').hidden = done; $('skip').hidden = done;
   $('undo').disabled = storageBlocked || !state.history.length;
   $('reviewer-tag').textContent = state.assessment.reviewer || 'Eigener Gerätestand';
   $('save-status').textContent = state.savedAt ? '✓ Auf diesem Gerät gespeichert · keine Synchronisierung' : (catalog.synthetic ? '◉ Nur auf diesem Browser gespeichert. Keine echten Bons.' : '◉ Bewertung bleibt auf diesem Gerät.');
-  for (const id of ['export', 'share-backup', 'share-text', 'download-backup', 'import-backup', 'recovery-backup', 'confirm-import', 'import-text', 'preview-text']) $(id).disabled = storageBlocked;
+  for (const id of ['export', 'share-backup', 'share-text', 'download-backup', 'import-backup', 'recovery-backup', 'confirm-import', 'import-text', 'preview-text', 'download-before-grouping']) $(id).disabled = storageBlocked;
+  try { $('download-before-grouping').hidden = !GROUP_RECOVERY_KEY || !localStorage.getItem(GROUP_RECOVERY_KEY); } catch { $('download-before-grouping').hidden = true; }
   try { $('recovery-backup').hidden = !localStorage.getItem(RECOVERY_KEY); } catch { $('recovery-backup').hidden = true; }
   for (const id of ['choose-a', 'choose-b', 'choose-shared', 'skip']) $(id).disabled = storageBlocked;
   if (!done) {
@@ -129,7 +144,7 @@ function render() {
     $('variant').textContent = p.variant ?? 'Wiederholungskäufe';
     renderProductImage(p);
     $('product-brand').textContent = p.brand;
-    $('product-title').textContent = p.name; $('product-detail').textContent = p.detail;
+    $('product-title').textContent = p.name; $('product-detail').textContent = p.detail + (conflicts.includes(p.id) ? ' · Bisher unterschiedlich bewertet – bitte neu zuordnen.' : '');
     $('purchase-count').textContent = `${p.count} Bons`; $('total').textContent = money(p.total);
     $('price-label').textContent = p.priceLabel ?? (p.weight ? 'Preis / kg' : 'Preis / Packung');
     $('price').textContent = p.low === null ? 'unbekannt' : p.low === p.high ? money(p.low) : `${money(p.low)}–${money(p.high)}`;
@@ -227,6 +242,18 @@ function downloadBackup() {
   backupStatus('Exportdatei erstellt. Du kannst sie als Anhang per Mail oder Messenger verschicken. Ein Empfang wurde noch nicht bestätigt.');
 }
 $('export').onclick = $('download-backup').onclick = downloadBackup;
+$('download-before-grouping').onclick = () => {
+  if (storageBlocked || !GROUP_RECOVERY_KEY) return;
+  try {
+    const old = JSON.parse(localStorage.getItem(GROUP_RECOVERY_KEY));
+    const sourceProducts = catalog.regrouping.sources.map(s => ({ id: s.id }));
+    const blob = new Blob([backupText(old, sourceProducts, catalog.id)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob); const a = element('a');
+    a.href = url; a.download = 'vor-zusammenfassung-' + filename(old); document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    backupStatus('Die frühere Einzelbewertung wurde exportiert. Deine aktuelle Bewertung bleibt unverändert.');
+  } catch { backupStatus('Der frühere Bewertungsstand konnte nicht exportiert werden. Die gespeicherten Daten bleiben unverändert.'); }
+};
 $('share-backup').onclick = async () => {
   if (storageBlocked) return;
   // No awaits before share(): preserve the user gesture required by mobile browsers.
@@ -262,7 +289,7 @@ $('import-backup').onclick = () => { $('backup-file').value = ''; $('backup-file
 $('import-text').onclick = () => { $('backup-text').value = ''; $('text-import-error').textContent = ''; $('text-import').showModal(); };
 $('preview-text').onclick = () => {
   try {
-    const restored = parseBackup($('backup-text').value.trim(), products, catalog.id);
+    const restored = parseBackup($('backup-text').value.trim(), products, catalog.id, catalog.regrouping);
     $('text-import').close(); previewImport(restored);
   } catch (error) { $('text-import-error').textContent = error.message; }
 };
@@ -270,11 +297,11 @@ $('backup-file').onchange = async () => {
   const file = $('backup-file').files[0]; if (!file || storageBlocked) return;
   try {
     if (file.size > MAX_BACKUP_BYTES) throw new Error('Die Datei ist zu groß (maximal 2 MB).');
-    previewImport(parseBackup(await file.text(), products, catalog.id));
+    previewImport(parseBackup(await file.text(), products, catalog.id, catalog.regrouping));
   } catch (error) { backupStatus(error.message); }
 };
 $('recovery-backup').onclick = () => {
-  try { previewImport(parseBackup(localStorage.getItem(RECOVERY_KEY), products, catalog.id)); }
+  try { previewImport(parseBackup(localStorage.getItem(RECOVERY_KEY), products, catalog.id, catalog.regrouping)); }
   catch (error) { backupStatus(error.message); }
 };
 $('confirm-import').onclick = () => {

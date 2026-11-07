@@ -29,7 +29,6 @@ const registryFile = path.join(directory, 'product-images.json');
 let registry = { products: {}, assets: {}, urls: {} };
 try { registry = JSON.parse(await readFile(registryFile, 'utf8')); } catch (error) { if (error.code !== 'ENOENT') throw error; }
 if (Object.entries(registry.products).some(([id, image]) => rejectedPairs.has(id + '\n' + registry.assets[image.id]?.originalUrl))) {
-  await writeFile(path.join(directory, 'product-images.before-visual-review.json'), JSON.stringify(registry, null, 2), { mode: 0o600 });
   for (const [id, image] of Object.entries(registry.products)) {
     if (rejectedPairs.has(id + '\n' + registry.assets[image.id]?.originalUrl)) delete registry.products[id];
   }

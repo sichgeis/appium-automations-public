@@ -1,4 +1,4 @@
-import { validateState, initialState } from './core.mjs';
+import { validateState, initialState, regroupState } from './core.mjs?v=groups-6';
 
 export const DATASET = 'synthetic-demo-v1';
 export const RECOVERY_KEY = 'household-swipe-before-import-v1';
@@ -13,7 +13,9 @@ export function createBackup(state, products, now = new Date(), dataset = DATASE
     return { format: 'household-assessment-compact', version: 1, dataset,
       exportedAt: now.toISOString(), names: state.names, assessment: state.assessment,
       decisions: Object.fromEntries(Object.entries(state.decisions).map(([id, d]) => [id, [d.choice, d.shareA]])),
-      queue: state.queue.filter(id => !state.decisions[id]) };
+      queue: state.queue.filter(id => !state.decisions[id]),
+      ...(state.groupingVersion !== undefined ? { groupingVersion: state.groupingVersion } : {}),
+      ...(state.groupingConflicts !== undefined ? { groupingConflicts: [...state.groupingConflicts] } : {}) };
   }
   return {
     format: 'household-consumption-assessment', version: 1, dataset: DATASET,
@@ -21,7 +23,7 @@ export function createBackup(state, products, now = new Date(), dataset = DATASE
   };
 }
 
-export function parseBackup(text, products, dataset = DATASET) {
+export function parseBackup(text, products, dataset = DATASET, regrouping = null) {
   if (new TextEncoder().encode(text).byteLength > MAX_BACKUP_BYTES) throw new Error('Die Datei ist zu groß (maximal 2 MB).');
   let data;
   try { data = JSON.parse(text); } catch { throw new Error('Die Datei enthält kein gültiges JSON.'); }
@@ -34,7 +36,9 @@ export function parseBackup(text, products, dataset = DATASET) {
       Object.defineProperty(state.decisions, id, { value: { choice: d[0], shareA: d[1] }, enumerable: true, configurable: true, writable: true });
     }
     if (!state.assessment) throw new Error('Bewertungskennung fehlt.');
-    return validateState(state, products);
+    if (Object.hasOwn(data, 'groupingVersion')) state.groupingVersion = data.groupingVersion;
+    if (Object.hasOwn(data, 'groupingConflicts')) state.groupingConflicts = data.groupingConflicts;
+    return regroupState(state, products, regrouping);
   }
   if (dataset !== DATASET) throw new Error('Bewertung gehört zu einem anderen Katalog.');
   // Read the previous demo download format too; never silently accept another dataset.

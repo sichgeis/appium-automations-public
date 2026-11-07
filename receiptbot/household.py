@@ -1,6 +1,6 @@
 """Lokale technische Migration geprüfter Bonpositionen in einen privaten Katalog.
 
-Kein Gerät/Netzwerk/LLM. Gleiche Händlerbezeichnung/Sorte wird zusammengefasst;
+Kein Gerät/Netzwerk/LLM. Gleiche Händlerbezeichnung/Sorte wird zunächst zusammengefasst;
 Packungsgrößen und Preise sind nach Nutzerentscheidung keine Gruppengrenze.
 Generische unklare Bezeichnungen bleiben getrennt.
 """
@@ -116,6 +116,38 @@ def build_catalog(receipts, catalog_id, rules=None):
             raise ValueError('Kollision verschiedener Produktidentitäten.')
         identities[group] = identity
         groups[group].append(purchase)
+    # Explicit consumption rules may cross brands/organic labels, never fuzzy-name matching.
+    original_ids = list(groups)
+    targets = {gid: gid for gid in original_ids}
+    used, consumption = set(), {}
+    for rule in (rules or {}).get('consumption_groups', []):
+        members = rule.get('members', [])
+        if (not re.fullmatch(r'[a-z0-9-]{1,80}', rule.get('key', ''))
+                or not members or len(members) != len(set(members))
+                or not rule.get('evidence') or not isinstance(rule.get('name'), str) or not rule['name'].strip()
+                or not isinstance(rule.get('detail'), str)):
+            raise ValueError('Unvollständige Verbrauchsgruppenregel.')
+        if any(gid not in groups or gid in used for gid in members):
+            raise ValueError('Fehlende oder mehrfach zugeordnete Produktkarte.')
+        gid = opaque('consumption-group:' + rule['key'])
+        if gid in groups or gid in consumption:
+            raise ValueError('Doppelte Verbrauchsgruppenkennung.')
+        entries = [p for member in members for p in groups[member]]
+        if len({p['category'] for p in entries}) != 1:
+            raise ValueError('Warenkategorien dürfen nicht still zusammengeführt werden.')
+        for member in members:
+            used.add(member)
+            targets[member] = gid
+        consumption[gid] = rule
+        groups[gid] = entries
+    for member in used:
+        del groups[member]
+    renames = (rules or {}).get('renames', {})
+    if any(gid not in groups for gid in renames):
+        raise ValueError('Anzeigenamensregel ohne Produktkarte.')
+    for rule in renames.values():
+        if not isinstance(rule.get('name'), str) or not rule['name'].strip() or not rule.get('evidence'):
+            raise ValueError('Anzeigename benötigt nachvollziehbaren Kontext.')
     cards = []
     for gid, entries in groups.items():
         first = entries[0]
@@ -132,12 +164,13 @@ def build_catalog(receipts, catalog_id, rules=None):
         parts = [f"{format(amount, 'f').replace('.', ',')} {'Stück' if unit == 'piece' else unit}" for unit, amount in sorted(quantities.items())]
         quantity = ' · '.join(parts) + (' insgesamt' if known == len(entries) else ' · Mengen teilweise offen') if parts else 'Menge nicht vollständig belegt'
         cards.append({
-            'id': gid, 'name': display_name(first['name']) or first['name'], 'brand': first['category'],
-            'detail': first['subcategory'], 'merchant': {'kaufland': 'Kaufland', 'lidl': 'Lidl'}[first['merchant']],
+            'id': gid, 'name': (consumption.get(gid) or renames.get(gid) or {}).get('name', display_name(first['name']) or first['name']), 'brand': first['category'],
+            'detail': (consumption.get(gid) or renames.get(gid) or {}).get('detail', first['subcategory']),
+            'merchant': ' · '.join({'kaufland': 'Kaufland', 'lidl': 'Lidl'}[m] for m in sorted({p['merchant'] for p in entries})),
             'count': len({p['receipt'] for p in entries}), 'quantity': quantity,
             'total': sum(p['amount'] for p in entries), 'low': min(prices) if prices else None,
             'high': max(prices) if prices else None, 'priceLabel': 'Einzelpreis laut Bon' if comparable_prices else 'Betrag pro Bonposition',
-            'variant': 'Identität bestätigt' if gid in confirmed else 'Sorte unklar – einzeln' if product_name(first['name']) in GENERIC else 'Größen & Angebote gemeinsam',
+            'variant': 'Marken & Bio gemeinsam' if gid in consumption else 'Identität bestätigt' if gid in confirmed else 'Sorte unklar – einzeln' if product_name(first['name']) in GENERIC else 'Größen & Angebote gemeinsam',
             'purchases': [{'id': p['id'], 'amount': p['amount'], 'month': p['month']} for p in entries],
         })
     cards.sort(key=lambda p: (-p['total'], p['id']))
@@ -152,6 +185,10 @@ def build_catalog(receipts, catalog_id, rules=None):
         raise ValueError('Katalogsumme nicht nachvollziehbar.')
     payload = {'format': 'household-catalog', 'version': 1, 'id': catalog_id, 'synthetic': False,
                'products': cards, 'coverage': dict(counts), 'ledgerTotals': totals}
+    if consumption:
+        if (rules or {}).get('grouping_version') != 1:
+            raise ValueError('Verbrauchsgruppen benötigen eine unterstützte Migrationsversion.')
+        payload['regrouping'] = {'version': 1, 'sources': [{'id': gid, 'target': targets[gid]} for gid in sorted(original_ids)]}
     people = (rules or {}).get('people')
     if people is not None:
         if (not isinstance(people, dict) or set(people) != {'a', 'b', 'version'} or type(people['version']) is not int or people['version'] < 1

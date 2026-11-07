@@ -17,7 +17,7 @@ await openCatalog(bytes, key, catalog.id); // independent authenticated round tr
 await mkdir(path.join(output, 'sealed'), { recursive: true, mode: 0o700 });
 const file = path.join(output, 'sealed', catalog.id + '.bin');
 await writeFile(file, bytes, { mode: 0o600, flag: 'wx' });
-target.searchParams.set('app', 'images-5');
+target.searchParams.set('app', 'groups-6');
 target.hash = new URLSearchParams({ catalog: catalog.id, key: encodeKey(key) }).toString();
 await writeFile(path.join(output, 'private-start-url.txt'), target.href + '\n', { mode: 0o600, flag: 'wx' });
 await writeFile(path.join(output, 'private-start.webloc'), '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>URL</key><string>' + target.href.replaceAll('&', '&amp;') + '</string></dict></plist>', { mode: 0o600, flag: 'wx' });

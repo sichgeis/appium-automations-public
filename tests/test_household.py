@@ -30,6 +30,34 @@ class HouseholdTests(unittest.TestCase):
         self.assertEqual(updated['products'], old['products'])
         self.assertEqual(updated['ledgerTotals'], old['ledgerTotals'])
 
+    def test_consumption_groups_cross_brand_bio_and_merchants_with_exact_lineage(self):
+        a = receipt([item(1, name='Bio-Bananen', amount=211), item(2, name='Nuss-Schokolade', amount=149)])
+        b = deepcopy(a); b.update(merchant='lidl', sha256='b' * 64)
+        b['items'] = [item(1, name='Bananen', amount=199), item(2, name='Joghurt-Schokolade', amount=179)]
+        before = build_catalog([a, b], CATALOG)[0]
+        bananas = [p['id'] for p in before['products'] if 'Bananen' in p['name']]
+        rules = {'grouping_version': 1, 'consumption_groups': [dict(key='bananas', name='Bananen', detail='Bio und konventionell', members=bananas, evidence='Explizite Nutzerregel, gleiche Frucht')],
+                 'renames': {next(p['id'] for p in before['products'] if p['name'] == 'Nuss-Schokolade'): {'name': 'Nussschokolade', 'evidence': 'Synthetische Abkürzungsauflösung'}}}
+        after = build_catalog([a, b], CATALOG, rules)[0]
+        self.assertEqual(len(after['products']), 3)
+        merged = next(p for p in after['products'] if p['name'] == 'Bananen')
+        self.assertEqual((merged['total'], merged['count'], merged['low'], merged['high']), (410, 2, 199, 211))
+        self.assertEqual(merged['merchant'], 'Kaufland · Lidl')
+        self.assertEqual(after['ledgerTotals'], before['ledgerTotals'])
+        self.assertEqual(sorted(x['id'] for p in after['products'] for x in p['purchases']), sorted(x['id'] for p in before['products'] for x in p['purchases']))
+        self.assertEqual({x['id'] for x in after['regrouping']['sources']}, {p['id'] for p in before['products']})
+        self.assertEqual({x['target'] for x in after['regrouping']['sources']}, {p['id'] for p in after['products']})
+        self.assertEqual(after, build_catalog([a, b], CATALOG, rules)[0])
+        self.assertEqual({p['name'] for p in after['products'] if 'schokolade' in p['name'].casefold()}, {'Nussschokolade', 'Joghurt-Schokolade'})
+        bad = deepcopy(rules); bad['consumption_groups'].append(deepcopy(bad['consumption_groups'][0]))
+        with self.assertRaises(ValueError): build_catalog([a, b], CATALOG, bad)
+        bad = deepcopy(rules); bad['consumption_groups'][0]['members'].append('p-' + 'f' * 24)
+        with self.assertRaises(ValueError): build_catalog([a, b], CATALOG, bad)
+        bad = deepcopy(rules); del bad['consumption_groups'][0]['evidence']
+        with self.assertRaises(ValueError): build_catalog([a, b], CATALOG, bad)
+        bad = deepcopy(rules); bad['grouping_version'] = 2
+        with self.assertRaises(ValueError): build_catalog([a, b], CATALOG, bad)
+
     def test_optional_private_people_do_not_change_product_ids(self):
         records = [receipt([item(1)])]
         old = build_catalog(records, CATALOG)[0]

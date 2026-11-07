@@ -8,3 +8,5 @@
 textarea{display:block;width:100%;margin-top:10px;padding:10px;border:1px solid #c9d2c0;border-radius:8px;background:#fafbf6;color:inherit;font:12px ui-monospace,monospace;resize:vertical}#text-import-error{color:#97452f}
 
 .product-scene img{width:210px;height:175px;object-fit:contain;mix-blend-mode:multiply;user-select:none;-webkit-user-drag:none}.card-foot{flex-wrap:wrap}#image-source{color:#587151;text-decoration:underline;text-underline-offset:2px;max-width:100%}@media(max-height:900px) and (max-width:799px){.product-scene img{height:110px;width:190px}}
+
+.grouping-note { padding: 12px 16px; background: #edf1e7; border-radius: 12px; color: #43523e; font-size: 13px; line-height: 1.5; }

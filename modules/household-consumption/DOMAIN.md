@@ -21,10 +21,24 @@ Bonpositionen über Händler + Originalhash + Positionsnummer identifizieren.
 Diese Herkunft bleibt ausschließlich im lokalen Paket; kein Originalpfad,
 Filialname, Zahlungsmerkmal oder Fiskalcode muss zur Web-App übertragen werden.
 
-Aktuelle Gruppierung: gleiche Händlerbezeichnung und Sorte, Größenangaben ignorieren.
-Markentext, Sorten und Fettstufen bleiben erhalten. Angebote werden nicht getrennt.
-Preisspannen sind Orientierung; Kaufbeträge bilden die Grundlage der Kostenaufteilung.
-Generische unklare Bezeichnungen bleiben separat. Keine unscharfe Zusammenführung.
+Aktuelle Nutzerentscheidung: typische Produkt-/Sortengruppen statt exakter
+Verpackungsvarianten. Packungsgrößen und Aktionspreise dürfen zusammengefasst
+werden. Gleiche normalisierte Händlerbezeichnung und Unterkategorie ergeben eine
+Karte. Größenangaben werden für den Gruppenschlüssel entfernt, Bekannte Sorten und Fettstufen bleiben erhalten. Seit der Nutzerentscheidung vom 07.11.2026 dürfen explizite geprüfte Verbrauchsgruppen gleiche Lebensmittel über Marken, Händler und Bio-Kennzeichnung hinweg zusammenführen. Butter und Himbeeren sind ausdrücklich gemeinsame Verbrauchsgruppen. Keine pauschale unscharfe Namenszusammenführung.
+
+Nussschokolade und Joghurt-Erdbeer-Schokolade bleiben getrennt. Generische
+Sammeltexte wie „SCHOKOLADE“ bleiben einzelne Prüffälle. Fehlende Marken oder
+Varianten nicht erfinden. Händlerübergreifende Gleichheit und abweichende Namen
+benötigen weiterhin eigene Prüfentscheidungen/Aliasse.
+
+Preise dienen als Orientierung. Bei vergleichbaren belegten Einzelpreisen wird
+deren Spanne angezeigt; ansonsten die Spanne der tatsächlich bezahlten Beträge je
+Bonposition. Diese kann Mehrfachmengen und unterschiedliche Größen umfassen und
+wird entsprechend beschriftet. Grundlage der Kostenaufteilung bleiben die realen
+Kaufbeträge nach direkt zugeordneten Produktrabatten.
+
+Eine technische lokale Regeldatei kann Gruppen ausdrücklich bestätigen. Quellen
+und Einzelkäufe bleiben erhalten; unklare Positionen werden nicht still verworfen.
 Gruppen-IDs bleiben bei Namensänderungen stabil; keine laufend neu berechneten
 Namenshashes als dauerhafte IDs verwenden.
 
@@ -81,6 +95,8 @@ Datensatz zeigt Lebensmittel, andere Waren, Pfand, Rückgaben und Rabatte.
   als Ausnahmen. Nach den ersten Produktkarten überprüfen.
 - Entscheidung: Unabhängige Gerätestände mit Export/Dateiteilen; zweite Bewertung
   optional. Empfangene Dateien behalten ihre Bewertungsidentität.
-- Entscheidung: Größen und Angebote gemeinsam; Sorten/Markenbezeichnungen unterscheidbar.
+- Entscheidung: Größen/Angebote gemeinsam; Geschmackssorten bleiben unterscheidbar; Marken/Bio dürfen nach expliziter Prüfung gemeinsam behandelt werden. Ziel ist ein Eindruck von Kostenanteilen, keine exakte Verzehrmessung.
 - Offen: Welche Kosten-/Mengenansicht beantwortet die Haushaltsfrage am besten?
 - Entscheidung: Kein zentraler, geräteübergreifender Datenstand benötigt.
+
+Aktuelle Zusammenfassungen und die sichere Übernahme bisheriger Einzelbewertungen: [Migration](MIGRATION.md#markenübergreifende-verbrauchsgruppen-07112026).
